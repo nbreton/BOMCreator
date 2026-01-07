@@ -1712,162 +1712,143 @@ function api_bootstrap() {
 
 
 function api_loadData(payload) {
- payload = payload || {};
- const diag = {
-   startedAt: new Date().toISOString(),
-   steps: [],
+  payload = payload || {};
+  const diag = {
+    startedAt: new Date().toISOString(),
+    steps: [],
    limits: {},
    sizes: {},
    counts: {}
  };
 
-
- const step = (name, fn) => {
-   const t0 = Date.now();
+  const step = (name, fn) => {
+    const t0 = Date.now();
    try {
-     const out = fn();
-     diag.steps.push({ name, ms: Date.now() - t0, ok: true });
-     return out;
-   } catch (e) {
-     diag.steps.push({ name, ms: Date.now() - t0, ok: false, error: e.message });
-     throw e;
-   }
- };
+      const out = fn();
+      diag.steps.push({ name, ms: Date.now() - t0, ok: true });
+      return out;
+    } catch (e) {
+      diag.steps.push({ name, ms: Date.now() - t0, ok: false, error: e.message });
+      throw e;
+    }
+  };
 
+  try {
+    // Limits (reduce payload risk)
+    const limitForms = Number(payload.limitForms || 200);
+    const limitReleases = Number(payload.limitReleases || 200);
+    const limitAgileLatest = Number(payload.limitAgileLatest || 300);
+    const jobsLimit = Number(payload.jobsLimit || 30);
 
- try {
-   // Limits (reduce payload risk)
-   const limitForms = Number(payload.limitForms || 200);
-   const limitReleases = Number(payload.limitReleases || 200);
-   const limitAgileLatest = Number(payload.limitAgileLatest || 300);
-   const jobsLimit = Number(payload.jobsLimit || 30);
+    diag.limits = { limitForms, limitReleases, limitAgileLatest, jobsLimit };
 
+    const dash = step('dashboard_build_', () => dashboard_build_());
 
-   diag.limits = { limitForms, limitReleases, limitAgileLatest, jobsLimit };
+    const configList = step('cfg_list_', () => cfg_list_());
 
+    const formsAll = step('normalize_forms', () => dashboard_normalizeFilesForUi_(dash.forms || []));
+    const releasesAll = step('normalize_releases', () => dashboard_normalizeFilesForUi_(dash.releases || []));
 
-   const dash = step('dashboard_build_', () => dashboard_build_());
+    const forms = formsAll.slice(0, limitForms);
+    const releases = releasesAll.slice(0, limitReleases);
 
+    const agileLatestAll = (dash.agileLatest || []);
+    const agileLatest = agileLatestAll.slice(0, limitAgileLatest);
 
-   const configList = step('cfg_list_', () => cfg_list_());
+    const pendingForms = step('normalize_pendingForms', () => dashboard_normalizeFilesForUi_(dash.pendingForms || []));
 
+    const jobsSummary = step('jobs_summary_', () => jobs_summary_());
+    const jobsRecent = step('jobs_list_', () => {
+      try {
+        return jobs_list_({ limit: jobsLimit, activeOnly: false });
+      } catch (e) {
+        return [];
+      }
+    });
 
-   const formsAll = step('normalize_forms', () => dashboard_normalizeFilesForUi_(dash.forms || []));
-   const releasesAll = step('normalize_releases', () => dashboard_normalizeFilesForUi_(dash.releases || []));
+    // Notifications (optional)
+    let notifStatus = { releasedQueueCount: 0, releasedLastSentAt: '', releasedNextSendAt: '' };
+    let notifSettings = [];
+    step('notif_optional', () => {
+      try { if (typeof globalThis['notif_getStatus_'] === 'function') notifStatus = notif_getStatus_(); } catch (e) {}
+      try { if (typeof globalThis['notif_listSettings_'] === 'function') notifSettings = notif_listSettings_(); } catch (e) {}
+      return true;
+    });
 
+    diag.counts = {
+      formsTotal: formsAll.length, formsSent: forms.length,
+      releasesTotal: releasesAll.length, releasesSent: releases.length,
+      agileLatestTotal: agileLatestAll.length, agileLatestSent: agileLatest.length,
+      jobsSent: jobsRecent.length
+    };
 
-   const forms = formsAll.slice(0, limitForms);
-   const releases = releasesAll.slice(0, limitReleases);
+    // Approx size (best-effort)
+    step('estimate_sizes', () => {
+      const safeLen = (obj) => {
+        try { return JSON.stringify(obj).length; } catch (e) { return -1; }
+      };
+      diag.sizes = {
+        configList: safeLen(configList),
+        dashboard: safeLen({ indexState: dash.indexState, projects: dash.projects, latestApprovedForm: dash.latestApprovedForm }),
+        forms: safeLen(forms),
+        releases: safeLen(releases),
+        agileLatest: safeLen(agileLatest),
+        jobsRecent: safeLen(jobsRecent),
+        notifications: safeLen({ notifStatus, notifSettings })
+      };
+      return true;
+    });
 
+    const response = {
+      ok: true,
+      __diag: diag,
 
-   const agileLatestAll = (dash.agileLatest || []);
-   const agileLatest = agileLatestAll.slice(0, limitAgileLatest);
+      configList,
 
+      dashboard: {
+        indexState: dash.indexState,
+        projects: dash.projects || [],
+        agileLatest,
+        pendingAgile: (dash.pendingAgile || []).slice(0, limitAgileLatest),
+        pendingForms,
+        latestApprovedForm: dash.latestApprovedForm ? {
+          mbomRev: dash.latestApprovedForm.MbomRev,
+          fileId: String(dash.latestApprovedForm.FileId || ''),
+          url: String(dash.latestApprovedForm.Url || ''),
+          status: String(dash.latestApprovedForm.Status || '')
+        } : null
+      },
 
-   const pendingForms = step('normalize_pendingForms', () => dashboard_normalizeFilesForUi_(dash.pendingForms || []));
+      forms,
+      releases,
 
+      jobs: {
+        summary: jobsSummary.summary,
+        runningJob: jobsSummary.runningJob,
+        recent: jobsRecent
+      },
 
-   const jobsSummary = step('jobs_summary_', () => jobs_summary_());
-   const jobsRecent = step('jobs_list_', () => {
-     try {
-       return jobs_list_({ limit: jobsLimit, activeOnly: false });
-     } catch (e) {
-       return [];
-     }
-   });
+      notifications: {
+        status: notifStatus,
+        settings: notifSettings
+      }
+    };
+    return api_safeReturn_(response, 'api_loadData response serialization failed');
 
+  } catch (e) {
+    // Server-side log for Apps Script "Executions"
+    try {
+      log_error_('api_loadData failed', { error: e.message, stack: e.stack, diag });
+    } catch (_) {}
 
-   // Notifications (optional)
-   let notifStatus = { releasedQueueCount: 0, releasedLastSentAt: '', releasedNextSendAt: '' };
-   let notifSettings = [];
-   step('notif_optional', () => {
-     try { if (typeof globalThis['notif_getStatus_'] === 'function') notifStatus = notif_getStatus_(); } catch (e) {}
-     try { if (typeof globalThis['notif_listSettings_'] === 'function') notifSettings = notif_listSettings_(); } catch (e) {}
-     return true;
-   });
-
-
-   diag.counts = {
-     formsTotal: formsAll.length, formsSent: forms.length,
-     releasesTotal: releasesAll.length, releasesSent: releases.length,
-     agileLatestTotal: agileLatestAll.length, agileLatestSent: agileLatest.length,
-     jobsSent: jobsRecent.length
-   };
-
-
-   // Approx size (best-effort)
-   step('estimate_sizes', () => {
-     const safeLen = (obj) => {
-       try { return JSON.stringify(obj).length; } catch (e) { return -1; }
-     };
-     diag.sizes = {
-       configList: safeLen(configList),
-       dashboard: safeLen({ indexState: dash.indexState, projects: dash.projects, latestApprovedForm: dash.latestApprovedForm }),
-       forms: safeLen(forms),
-       releases: safeLen(releases),
-       agileLatest: safeLen(agileLatest),
-       jobsRecent: safeLen(jobsRecent),
-       notifications: safeLen({ notifStatus, notifSettings })
-     };
-     return true;
-   });
-
-
-   return {
-     ok: true,
-     __diag: diag,
-
-
-     configList,
-
-
-     dashboard: {
-       indexState: dash.indexState,
-       projects: dash.projects || [],
-       agileLatest,
-       pendingAgile: (dash.pendingAgile || []).slice(0, limitAgileLatest),
-       pendingForms,
-       latestApprovedForm: dash.latestApprovedForm ? {
-         mbomRev: dash.latestApprovedForm.MbomRev,
-         fileId: String(dash.latestApprovedForm.FileId || ''),
-         url: String(dash.latestApprovedForm.Url || ''),
-         status: String(dash.latestApprovedForm.Status || '')
-       } : null
-     },
-
-
-     forms,
-     releases,
-
-
-     jobs: {
-       summary: jobsSummary.summary,
-       runningJob: jobsSummary.runningJob,
-       recent: jobsRecent
-     },
-
-
-     notifications: {
-       status: notifStatus,
-       settings: notifSettings
-     }
-   };
-
-
- } catch (e) {
-   // Server-side log for Apps Script "Executions"
-   try {
-     log_error_('api_loadData failed', { error: e.message, stack: e.stack, diag });
-   } catch (_) {}
-
-
-   return {
-     ok: false,
-     error: e.message || String(e),
-     stack: e.stack || '',
-     __diag: diag
-   };
- }
+    const errorResponse = {
+      ok: false,
+      error: e.message || String(e),
+      stack: e.stack || '',
+      __diag: diag
+    };
+    return api_safeReturn_(errorResponse, 'api_loadData error serialization failed');
+  }
 }
 
 
