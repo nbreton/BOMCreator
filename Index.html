@@ -320,6 +320,7 @@
         <h3>Copy Monitoring (Jobs)</h3>
         <div class="row">
           <button class="btn" id="btnRefreshJobs">Refresh jobs</button>
+          <button class="btn warn" id="btnRestartJobs">Restart job runner</button>
           <label style="margin:0;">
             <input type="checkbox" id="chkAutoJobs" checked>
             Auto-refresh while running
@@ -569,18 +570,22 @@ Import:
 
   // Tabs navigation
   document.querySelectorAll('.tab').forEach(t => {
-    t.addEventListener('click', () => {
+    t.addEventListener('click', async () => {
       document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
       t.classList.add('active');
       const page = t.dataset.page;
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       $('page-' + page).classList.add('active');
+
+      if (page === 'monitoring') await loadSections(['jobs'], 'Loading jobs…');
+      if (page === 'settings') await loadSections(['config'], 'Loading settings…');
+      if (page === 'notifications') await loadSections(['notifications'], 'Loading notifications…');
     });
   });
 
   // Dashboard subtabs
   document.querySelectorAll('.subtab').forEach(st => {
-    st.addEventListener('click', () => {
+    st.addEventListener('click', async () => {
       document.querySelectorAll('.subtab').forEach(x => x.classList.remove('active'));
       st.classList.add('active');
 
@@ -589,6 +594,10 @@ Import:
       $('dash-forms').style.display = (sub === 'forms') ? '' : 'none';
       $('dash-agile').style.display = (sub === 'agile') ? '' : 'none';
       $('dash-approvals').style.display = (sub === 'approvals') ? '' : 'none';
+
+      if (sub === 'forms') await loadSections(['forms'], 'Loading forms…');
+      if (sub === 'agile') await loadSections(['agileLatest'], 'Loading Agile BOM…');
+      if (sub === 'approvals') await loadSections(['approvals'], 'Loading approvals…');
     });
   });
 
@@ -727,6 +736,15 @@ Import:
 
   // Monitoring refresh
   $('btnRefreshJobs').addEventListener('click', refreshJobs);
+  $('btnRestartJobs').addEventListener('click', async () => {
+    if (!confirm('Restart the job runner trigger?')) return;
+    try{
+      await run('Restarting job runner…', 'api_restartJobs', {});
+      await refreshJobs();
+    } catch(e){
+      alert('Restart failed: ' + (e.message || e));
+    }
+  });
 
   // Approvals filter
   $('chkPendingOnly').addEventListener('change', () => renderApprovals());
@@ -865,9 +883,14 @@ Import:
     }).join('');
 
     const errorsHtml = (j.errors || []).map(e => `<div class="mono" style="color:var(--red)">• ${(e.projectKey? (e.projectKey + ': ') : '')}${e.error}</div>`).join('');
-    const actionsHtml = (['ERROR','DONE_WITH_ERRORS'].includes(String(j.status || '').toUpperCase()))
+    const statusUpper = String(j.status || '').toUpperCase();
+    const retryBtn = (['ERROR','DONE_WITH_ERRORS'].includes(statusUpper))
       ? `<button class="btn" data-act="retryJob" data-id="${j.id}">Retry</button>`
-      : '<span class="mono">—</span>';
+      : '';
+    const removeBtn = (statusUpper === 'RUNNING')
+      ? '<span class="mono">—</span>'
+      : `<button class="btn warn" data-act="removeJob" data-id="${j.id}">Remove</button>`;
+    const actionsHtml = [retryBtn, removeBtn].filter(Boolean).join(' ');
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -896,6 +919,18 @@ Import:
       }
     });
   });
+
+  tbody.querySelectorAll('button[data-act="removeJob"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Remove this job from the queue/history?')) return;
+      try{
+        await run('Removing job…', 'api_removeJob', { jobId: btn.dataset.id });
+        await refreshJobs();
+      } catch(e){
+        alert('Remove failed: ' + (e.message || e));
+      }
+    });
+  });
 }
 
 
@@ -912,6 +947,7 @@ Import:
       const relCell = rel ? `${fileLink(rel.url, `Rev ${rel.mbomRev}`)}<div class="mono">${rel.status || ''}</div>` : '<span class="mono">—</span>';
 
       const tr = document.createElement('tr');
+      if (p.hasNewAgileRevision) tr.classList.add('project-alert');
       tr.innerHTML = `
         <td><input type="checkbox" data-projchk="${p.projectKey}"></td>
         <td><span class="pill ok">${p.projectKey}</span></td>
@@ -1333,6 +1369,73 @@ Import:
     renderNotif(BOOT.notifications.settings || [], BOOT.notifications.status || {});
   }
 
+  async function loadSections(sections, label){
+    BOOT.loaded = BOOT.loaded || {};
+    const expanded = new Set(sections || []);
+    if (expanded.has('approvals')) {
+      expanded.add('forms');
+      expanded.add('agileLatest');
+    }
+
+    const missing = Array.from(expanded).filter(s => !BOOT.loaded[s]);
+    if (!missing.length) return;
+
+    const data = await run(label || 'Loading data…', 'api_loadData', {
+      sections: missing,
+      jobsLimit: 30,
+      limitForms: 200,
+      limitReleases: 200,
+      limitAgileLatest: 300
+    });
+
+    if (!data || typeof data !== 'object') {
+      throw new Error('api_loadData returned empty/invalid response (null/undefined).');
+    }
+    if (data.ok === false) {
+      console.error('[mBOM] api_loadData server error:', data.error, data.stack, data.__diag);
+      throw new Error(`api_loadData failed on server: ${data.error}`);
+    }
+
+    if (data.dashboard) {
+      BOOT.dashboard = { ...(BOOT.dashboard || {}), ...(data.dashboard || {}) };
+    }
+    if (missing.includes('forms')) {
+      BOOT.forms = data.forms || [];
+      renderForms(BOOT.forms || []);
+    }
+    if (missing.includes('releases')) {
+      BOOT.releases = data.releases || [];
+    }
+    if (missing.includes('agileLatest')) {
+      renderAgileLatest(BOOT.dashboard.agileLatest || []);
+    }
+    if (missing.includes('projects')) {
+      renderProjects(BOOT.dashboard.projects || []);
+      populateProjectsDropdown(BOOT.dashboard.projects || []);
+      await refreshReleaseSelectors();
+    }
+    if (missing.includes('jobs')) {
+      BOOT.jobs = data.jobs || BOOT.jobs;
+      renderJobsTop();
+      renderJobsTable(BOOT.jobs.recent || []);
+      scheduleJobsPolling();
+    }
+    if (missing.includes('config')) {
+      BOOT.configList = data.configList || [];
+      renderConfig(BOOT.configList || []);
+    }
+    if (missing.includes('notifications')) {
+      BOOT.notifications = data.notifications || { status: {}, settings: [] };
+      if (typeof renderNotifTable === 'function') renderNotifTable();
+    }
+    if (expanded.has('approvals')) {
+      renderApprovals();
+    }
+
+    missing.forEach(s => { BOOT.loaded[s] = true; });
+    if (expanded.has('approvals')) BOOT.loaded.approvals = true;
+  }
+
   async function bootstrap() {
   try {
     // Phase 1: fast bootstrap
@@ -1345,6 +1448,7 @@ Import:
     BOOT.config = boot.config;
     BOOT.indexState = boot.indexState;
     BOOT.jobs = { summary: boot.jobsSummary?.summary || {}, runningJob: boot.jobsSummary?.runningJob || null, recent: [] };
+    BOOT.loaded = {};
 
     $('sub').textContent =
       `User: ${BOOT.user || '(unknown)'} • Require Form: ${BOOT.config?.requireApprovedForm} • Require Agile: ${BOOT.config?.requireApprovedAgile}`;
@@ -1355,50 +1459,7 @@ Import:
     // Minimal rendering to avoid blank screen
     if (typeof renderJobsTop === 'function') renderJobsTop();
 
-    // Phase 2: load heavy data
-    const data = await run('Loading data…', 'api_loadData', {
-      jobsLimit: 30,
-      limitForms: 200,
-      limitReleases: 200,
-      limitAgileLatest: 300
-    });
-
-    if (!data || typeof data !== 'object') {
-      throw new Error('api_loadData returned empty/invalid response (null/undefined).');
-    }
-
-    if (data.ok === false) {
-      // Surface server diagnostics
-      console.error('[mBOM] api_loadData server error:', data.error, data.stack, data.__diag);
-      throw new Error(`api_loadData failed on server: ${data.error}`);
-    }
-
-    // Optional: log diag to console
-    console.log('[mBOM] api_loadData diag:', data.__diag);
-
-
-    // Merge into BOOT
-    BOOT.configList = data.configList || [];
-    BOOT.dashboard = data.dashboard || { projects: [], agileLatest: [] };
-    BOOT.forms = data.forms || [];
-    BOOT.releases = data.releases || [];
-    BOOT.jobs = data.jobs || BOOT.jobs;
-    BOOT.notifications = data.notifications || { status: {}, settings: [] };
-
-    // Render full UI
-    renderJobsTop();
-    renderJobsTable(BOOT.jobs.recent || []);
-    scheduleJobsPolling();
-
-    renderProjects(BOOT.dashboard.projects || []);
-    renderForms(BOOT.forms || []);
-    renderAgileLatest(BOOT.dashboard.agileLatest || []);
-    renderApprovals();
-    renderConfig(BOOT.configList || []);
-    if (typeof renderNotifTable === 'function') renderNotifTable();
-
-    populateProjectsDropdown(BOOT.dashboard.projects || []);
-    await refreshReleaseSelectors();
+    await loadSections(['projects', 'jobs'], 'Loading data…');
 
   } catch (e) {
     setBusy(false, '');

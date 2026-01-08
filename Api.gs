@@ -73,38 +73,73 @@ function api_loadData(payload) {
 
     diag.limits = { limitForms, limitReleases, limitAgileLatest, jobsLimit };
 
-    const dash = step('dashboard_build_', () => dashboard_build_());
+    const sections = Array.isArray(payload.sections) ? payload.sections.map(String) : [];
+    const loadAll = sections.length === 0;
+    const wantProjects = loadAll || sections.includes('projects');
+    const wantForms = loadAll || sections.includes('forms') || sections.includes('approvals');
+    const wantReleases = loadAll || sections.includes('releases');
+    const wantAgileLatest = loadAll || sections.includes('agileLatest') || sections.includes('approvals');
+    const wantJobs = loadAll || sections.includes('jobs');
+    const wantConfig = loadAll || sections.includes('config');
+    const wantNotifications = loadAll || sections.includes('notifications');
 
-    const configList = step('cfg_list_', () => cfg_list_());
+    diag.sections = {
+      loadAll,
+      wantProjects,
+      wantForms,
+      wantReleases,
+      wantAgileLatest,
+      wantJobs,
+      wantConfig,
+      wantNotifications
+    };
 
-    const formsAll = step('normalize_forms', () => dashboard_normalizeFilesForUi_(dash.forms || []));
-    const releasesAll = step('normalize_releases', () => dashboard_normalizeFilesForUi_(dash.releases || []));
+    const needsDashboard = wantProjects || wantForms || wantReleases || wantAgileLatest;
+    const dash = needsDashboard
+      ? step('dashboard_build_', () => dashboard_build_({
+        includeProjects: wantProjects,
+        includeFormsList: wantForms,
+        includeReleasesList: wantReleases,
+        includeAgileLatest: wantAgileLatest,
+        includePending: loadAll,
+        includeLatestApprovedForm: wantProjects
+      }))
+      : { indexState: agile_indexState_(), projects: [], forms: [], releases: [], agileLatest: [], pendingAgile: [], pendingForms: [], latestApprovedForm: null };
 
-    const forms = formsAll.slice(0, limitForms);
-    const releases = releasesAll.slice(0, limitReleases);
+    const configList = wantConfig ? step('cfg_list_', () => cfg_list_()) : [];
 
-    const agileLatestAll = (dash.agileLatest || []);
-    const agileLatest = agileLatestAll.slice(0, limitAgileLatest);
+    const formsAll = wantForms ? step('normalize_forms', () => dashboard_normalizeFilesForUi_(dash.forms || [])) : [];
+    const releasesAll = wantReleases ? step('normalize_releases', () => dashboard_normalizeFilesForUi_(dash.releases || [])) : [];
 
-    const pendingForms = step('normalize_pendingForms', () => dashboard_normalizeFilesForUi_(dash.pendingForms || []));
+    const forms = wantForms ? formsAll.slice(0, limitForms) : [];
+    const releases = wantReleases ? releasesAll.slice(0, limitReleases) : [];
 
-    const jobsSummary = step('jobs_summary_', () => jobs_summary_());
-    const jobsRecent = step('jobs_list_', () => {
+    const agileLatestAll = wantAgileLatest ? (dash.agileLatest || []) : [];
+    const agileLatest = wantAgileLatest ? agileLatestAll.slice(0, limitAgileLatest) : [];
+
+    const pendingForms = loadAll
+      ? step('normalize_pendingForms', () => dashboard_normalizeFilesForUi_(dash.pendingForms || []))
+      : [];
+
+    const jobsSummary = wantJobs ? step('jobs_summary_', () => jobs_summary_()) : { summary: { queued: 0, running: 0, done: 0, doneWithErrors: 0, error: 0 }, runningJob: null };
+    const jobsRecent = wantJobs ? step('jobs_list_', () => {
       try {
         return jobs_list_({ limit: jobsLimit, activeOnly: false });
       } catch (e) {
         return [];
       }
-    });
+    }) : [];
 
     // Notifications (optional)
     let notifStatus = { releasedQueueCount: 0, releasedLastSentAt: '', releasedNextSendAt: '' };
     let notifSettings = [];
-    step('notif_optional', () => {
-      try { if (typeof globalThis['notif_getStatus_'] === 'function') notifStatus = notif_getStatus_(); } catch (e) {}
-      try { if (typeof globalThis['notif_listSettings_'] === 'function') notifSettings = notif_listSettings_(); } catch (e) {}
-      return true;
-    });
+    if (wantNotifications) {
+      step('notif_optional', () => {
+        try { if (typeof globalThis['notif_getStatus_'] === 'function') notifStatus = notif_getStatus_(); } catch (e) {}
+        try { if (typeof globalThis['notif_listSettings_'] === 'function') notifSettings = notif_listSettings_(); } catch (e) {}
+        return true;
+      });
+    }
 
     diag.counts = {
       formsTotal: formsAll.length, formsSent: forms.length,
@@ -140,7 +175,7 @@ function api_loadData(payload) {
         indexState: dash.indexState,
         projects: dash.projects || [],
         agileLatest,
-        pendingAgile: (dash.pendingAgile || []).slice(0, limitAgileLatest),
+        pendingAgile: loadAll ? (dash.pendingAgile || []).slice(0, limitAgileLatest) : [],
         pendingForms,
         latestApprovedForm: dash.latestApprovedForm ? {
           mbomRev: dash.latestApprovedForm.MbomRev,
@@ -283,3 +318,5 @@ function api_updateNotifSettings(payload) { auth_requireEditor_(); payload = pay
 function api_listJobs(payload) { payload = payload || {}; return { ok: true, summary: jobs_summary_(), jobs: jobs_list_({ limit: payload.limit || 50, activeOnly: payload.activeOnly === true }) }; }
 function api_jobStatus(jobId) { return jobs_getStatus_(jobId); }
 function api_retryJob(payload) { auth_requireEditor_(); payload = payload || {}; return jobs_retry_(payload.jobId); }
+function api_removeJob(payload) { auth_requireEditor_(); payload = payload || {}; return jobs_remove_(payload.jobId); }
+function api_restartJobs(payload) { auth_requireEditor_(); payload = payload || {}; return jobs_restartRunner_(); }

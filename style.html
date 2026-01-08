@@ -120,8 +120,8 @@
 
   .opLine{
     width:100%;
-    height:3px;
-    background:#e8f0fe;
+    height:2px;
+    background:#eef1f6;
     border-radius:999px;
     overflow:hidden;
     display:none;
@@ -133,7 +133,7 @@
     width:40%;
     top:0;
     bottom:0;
-    background:var(--blue);
+    background:rgba(26,115,232,.45);
     animation: ind 1.2s infinite;
   }
   @keyframes ind { 0%{left:-40%;} 100%{left:100%;} }
@@ -213,6 +213,10 @@
     vertical-align:top;
   }
   .table th{ color:var(--muted); font-weight:800; font-size:11px; }
+  .table tr.project-alert{
+    border-left:3px solid var(--red);
+    background:rgba(217,48,37,.05);
+  }
 
   .pill{
     display:inline-block;

@@ -1,16 +1,22 @@
 function drive_copyFileWithRetry_(srcFileId, destFolderId, newName, maxAttempts = 6) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  lock.waitLock(120000);
   try {
+    const sizeBytes = drive_getFileSizeSafe_(srcFileId);
+    const largeFile = sizeBytes >= 50 * 1024 * 1024;
+    const attempts = Math.max(maxAttempts, largeFile ? 8 : maxAttempts);
+    const openWaitMs = largeFile ? 4 * 60 * 1000 : 90 * 1000;
+    const initialDelayMs = largeFile ? 6000 : 1000;
     let lastErr = null;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
         const fileId = drive_copyFile_(srcFileId, destFolderId, newName);
-        drive_openSpreadsheetWithRetry_(fileId, 90 * 1000);
+        Utilities.sleep(initialDelayMs);
+        drive_openSpreadsheetWithRetry_(fileId, openWaitMs);
         return fileId;
       } catch (e) {
         lastErr = e;
-        const sleepMs = Math.min(15000, 1000 * Math.pow(2, attempt));
+        const sleepMs = Math.min(20000, 1200 * Math.pow(2, attempt));
         Utilities.sleep(sleepMs);
       }
     }
@@ -51,6 +57,15 @@ function drive_openSpreadsheetWithRetry_(fileId, maxWaitMs) {
     }
   }
   throw lastErr || new Error('Timed out waiting for spreadsheet to become available');
+}
+
+function drive_getFileSizeSafe_(fileId) {
+  try {
+    const file = DriveApp.getFileById(fileId);
+    return Number(file.getSize() || 0);
+  } catch (e) {
+    return 0;
+  }
 }
 
 function drive_getOrCreateSubfolderId_(parentFolderId, subfolderName) {

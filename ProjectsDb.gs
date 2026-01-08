@@ -94,3 +94,32 @@ function projects_setClusterGroup_(projectKey, clusterGroup) {
 
   return { ok: true, projectKey: pk, clusterGroup: cg };
 }
+
+function projects_syncFromAgile_(projects) {
+  const list = Array.isArray(projects) ? projects : [];
+  if (!list.length) return { ok: true, added: 0 };
+
+  const sh = projects_ensure_();
+  const values = sh.getDataRange().getValues();
+  const existing = new Set();
+  for (let i = 1; i < values.length; i++) {
+    const pk = String(values[i][0] || '').trim();
+    if (pk) existing.add(pk);
+  }
+
+  const user = (Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || '');
+  const now = new Date();
+  const rows = [];
+
+  list.forEach(p => {
+    const pk = String(p.projectKey || '').trim();
+    if (!pk || existing.has(pk)) return;
+    const inferred = projects_inferClusterGroup_(pk);
+    rows.push([pk, inferred, '', '', now, user]);
+    existing.add(pk);
+  });
+
+  if (!rows.length) return { ok: true, added: 0 };
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
+  return { ok: true, added: rows.length };
+}

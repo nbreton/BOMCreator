@@ -193,7 +193,13 @@ function agile_isTrue_(v) {
 /**
  * Read AGILE_INDEX without auto-refresh. Returns [] if missing/empty.
  */
-function agile_readIndex_() {
+function agile_readIndex_(opts) {
+  opts = opts || {};
+  const useCache = opts.useCache !== false;
+  if (useCache && Array.isArray(globalThis.__AGILE_INDEX_CACHE__)) {
+    return globalThis.__AGILE_INDEX_CACHE__;
+  }
+
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName('AGILE_INDEX');
   if (!sh || sh.getLastRow() < 2) return [];
@@ -211,16 +217,22 @@ function agile_readIndex_() {
     obj.ApprovalStatus = approvals[tab]?.status || 'PENDING';
     out.push(obj);
   }
+
+  if (useCache) globalThis.__AGILE_INDEX_CACHE__ = out;
   return out;
 }
 
 function agile_listLatest_() {
-  const rows = agile_readIndex_().filter(r => agile_isTrue_(r.IsLatest));
-  rows.sort((a, b) =>
+  return agile_listLatestFromRows_(agile_readIndex_());
+}
+
+function agile_listLatestFromRows_(rows) {
+  const latest = (rows || []).filter(r => agile_isTrue_(r.IsLatest));
+  latest.sort((a, b) =>
     String(a.Site || '').localeCompare(String(b.Site || '')) ||
     String(a.PartNorm || '').localeCompare(String(b.PartNorm || ''))
   );
-  return rows.map(r => ({
+  return latest.map(r => ({
     site: String(r.Site || ''),
     partNorm: String(r.PartNorm || ''),
     rev: r.Rev,
@@ -271,7 +283,11 @@ function agile_listTabs_(site, part) {
  * Restored and required by dashboard_build_()
  */
 function agile_getProjects_() {
-  const rows = agile_readIndex_();
+  return agile_getProjectsFromRows_(agile_readIndex_());
+}
+
+function agile_getProjectsFromRows_(rows) {
+  rows = rows || [];
   const latestZoneRows = rows.filter(r =>
     agile_isTrue_(r.IsLatest) &&
     /^Zone\s+\d+$/i.test(String(r.PartNorm || ''))
