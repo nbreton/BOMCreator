@@ -94,17 +94,29 @@ function dashboard_build_(opts) {
 }
 
 function dashboard_hasNewAgileRevision_(project, release) {
+  if (!release) return false;
+
   const projectRevNum = Number(project?.clusterRev || 0);
   const releaseRevNum = Number(release?.AgileRevCluster || 0);
 
   if (isFinite(projectRevNum) && isFinite(releaseRevNum) && releaseRevNum > 0) {
-    return projectRevNum > releaseRevNum;
+    if (projectRevNum > releaseRevNum) return true;
+  } else {
+    const projectRev = String(project?.clusterRev || '').trim();
+    const releaseRev = String(release?.AgileRevCluster || '').trim();
+    if (projectRev && releaseRev && projectRev !== releaseRev) return true;
   }
 
-  const projectRev = String(project?.clusterRev || '').trim();
-  const releaseRev = String(release?.AgileRevCluster || '').trim();
-  if (!projectRev || !releaseRev) return false;
-  return projectRev !== releaseRev;
+  const latestClusterTab = String(project?.clusterTab || '').trim();
+  const latestMdaTab = String(project?.mdaTab || '').trim();
+  const releaseClusterTab = String(release?.AgileTabCluster || '').trim();
+  const releaseMdaTab = String(release?.AgileTabMDA || '').trim();
+
+  if (latestClusterTab && releaseClusterTab && latestClusterTab !== releaseClusterTab) return true;
+  if (project?.includeMda && latestMdaTab && releaseMdaTab && latestMdaTab !== releaseMdaTab) return true;
+  if (project?.includeMda && latestMdaTab && !releaseMdaTab) return true;
+
+  return false;
 }
 
 function dashboard_normalizeFilesForUi_(rows) {

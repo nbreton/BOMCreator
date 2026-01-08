@@ -292,8 +292,23 @@
                 <div class="cardBody">
                   <div class="row">
                     <button class="btn" id="btnLoadActions">Load Actions</button>
-                    <input id="actionFilter" placeholder="Filter actions by text" style="min-width:240px;">
                     <span class="mono" id="actionsMeta"></span>
+                  </div>
+                  <div class="row actionsFilters">
+                    <input id="actionFilter" placeholder="Filter actions by text" style="min-width:220px;">
+                    <select id="actionFilterProject">
+                      <option value="">All Projects</option>
+                    </select>
+                    <select id="actionFilterDiscipline">
+                      <option value="">All Disciplines</option>
+                    </select>
+                    <select id="actionFilterStatus">
+                      <option value="">All Statuses</option>
+                    </select>
+                    <select id="actionFilterSource">
+                      <option value="">All Sources</option>
+                    </select>
+                    <button class="btn" id="btnClearActionFilters">Clear</button>
                   </div>
                   <table class="table" id="tblActions" style="margin-top:10px;">
                     <thead>
@@ -1046,6 +1061,7 @@ Import:
       } else {
         $('actionsMeta').textContent = `Loaded ${changeActionsCache.length} actions from ${res.sources?.length || 0} sheet(s).`;
       }
+      updateActionFilters(changeActionsCache);
       renderChangeActions(changeActionsCache);
     } catch (e) {
       $('actionsMeta').textContent = 'Failed to load actions.';
@@ -1053,7 +1069,20 @@ Import:
     }
   });
 
-  $('actionFilter').addEventListener('input', () => {
+  ['actionFilter', 'actionFilterProject', 'actionFilterDiscipline', 'actionFilterStatus', 'actionFilterSource']
+    .forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener('input', () => renderChangeActions(changeActionsCache));
+      el.addEventListener('change', () => renderChangeActions(changeActionsCache));
+    });
+
+  $('btnClearActionFilters').addEventListener('click', () => {
+    $('actionFilter').value = '';
+    $('actionFilterProject').value = '';
+    $('actionFilterDiscipline').value = '';
+    $('actionFilterStatus').value = '';
+    $('actionFilterSource').value = '';
     renderChangeActions(changeActionsCache);
   });
 
@@ -1526,6 +1555,8 @@ Import:
       const fileName = escapeHtml(f.fileName || '');
       const createdAt = escapeHtml(fmtDate(f.createdAt));
       const eco = escapeHtml(f.eco || '');
+      const isObsolete = String(f.status || '').toUpperCase() === 'OBSOLETE';
+      const canObsolete = !isCurrent && !isObsolete;
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -1544,6 +1575,10 @@ Import:
           ${isCurrent
             ? '<span class="mono" style="margin-left:6px;">Current Approved</span>'
             : `<button class="btn primary" data-act="setCurrentApproved" data-file="${fileId}">Set Current</button>`
+          }
+          ${canObsolete
+            ? `<button class="btn danger" data-act="obsoleteForm" data-file="${fileId}">Obsolete</button>`
+            : '<span class="mono" style="margin-left:6px;">—</span>'
           }
         </td>
       `;
@@ -1570,6 +1605,19 @@ Import:
           await bootstrap();
         } catch(e){
           notifyError('Update failed', e);
+        }
+      });
+    });
+
+    tbody.querySelectorAll('button[data-act="obsoleteForm"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Move this Form revision to Obsolete?')) return;
+        try{
+          await run('Obsoleting form…','api_obsoleteFormFile', { fileId: btn.dataset.file });
+          notifySuccess('Form marked obsolete.');
+          await bootstrap();
+        } catch(e){
+          notifyError('Obsolete failed', e);
         }
       });
     });
@@ -1675,6 +1723,9 @@ Import:
       const downloadDate = escapeHtml(r.downloadDate);
       const tabName = escapeHtml(r.tabName);
       const busway = escapeHtml(r.buswaySupplier || '');
+      const status = String(r.approvalStatus || '').toUpperCase();
+      const showApproveReject = status !== 'APPROVED';
+      const showObsolete = status !== 'OBSOLETE';
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="mono">${site}</td>
@@ -1685,8 +1736,9 @@ Import:
         <td class="mono">${busway}</td>
         <td>${pill(r.approvalStatus)}</td>
         <td>
-          <button class="btn" data-act="approveAgile" data-tab="${tabName}">Approve</button>
-          <button class="btn danger" data-act="rejectAgile" data-tab="${tabName}">Reject</button>
+          ${showApproveReject ? `<button class="btn" data-act="approveAgile" data-tab="${tabName}">Approve</button>
+          <button class="btn danger" data-act="rejectAgile" data-tab="${tabName}">Reject</button>` : '<span class="mono">Approved</span>'}
+          ${showObsolete ? `<button class="btn danger" data-act="obsoleteAgile" data-tab="${tabName}">Obsolete</button>` : '<span class="mono" style="margin-left:6px;">Obsolete</span>'}
         </td>
       `;
       tbody.appendChild(tr);
@@ -1713,6 +1765,18 @@ Import:
           await bootstrap();
         }
         catch(e){ notifyError('Rejection failed', e); }
+      });
+    });
+
+    tbody.querySelectorAll('button[data-act="obsoleteAgile"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const notes = prompt(`Obsolete Agile Tab:\n${btn.dataset.tab}\n\nNotes (optional):`, '') || '';
+        try{
+          await run('Obsoleting Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'OBSOLETE', notes });
+          notifySuccess('Agile tab marked obsolete.');
+          await bootstrap();
+        }
+        catch(e){ notifyError('Obsolete failed', e); }
       });
     });
   }
@@ -1816,11 +1880,39 @@ Import:
     });
   }
 
+  function updateActionFilters(rows){
+    const projects = Array.from(new Set((rows || []).map(r => String(r.projectName || '').trim()).filter(Boolean))).sort();
+    const disciplines = Array.from(new Set((rows || []).map(r => String(r.discipline || '').trim()).filter(Boolean))).sort();
+    const statuses = Array.from(new Set((rows || []).map(r => String(r.lifecycleStatus || '').trim()).filter(Boolean))).sort();
+    const sources = Array.from(new Set((rows || []).map(r => String(r.sourceSheet || '').trim()).filter(Boolean))).sort();
+
+    const fill = (id, values, label) => {
+      const select = $(id);
+      if (!select) return;
+      const current = select.value;
+      select.innerHTML = `<option value="">${label}</option>` + values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+      if (current) select.value = current;
+    };
+
+    fill('actionFilterProject', projects, 'All Projects');
+    fill('actionFilterDiscipline', disciplines, 'All Disciplines');
+    fill('actionFilterStatus', statuses, 'All Statuses');
+    fill('actionFilterSource', sources, 'All Sources');
+  }
+
   function renderChangeActions(rows){
     const tbody = $('tblActions').querySelector('tbody');
     tbody.innerHTML = '';
     const filter = String($('actionFilter').value || '').trim().toLowerCase();
+    const projectFilter = String($('actionFilterProject').value || '').trim();
+    const disciplineFilter = String($('actionFilterDiscipline').value || '').trim();
+    const statusFilter = String($('actionFilterStatus').value || '').trim();
+    const sourceFilter = String($('actionFilterSource').value || '').trim();
     const filtered = (rows || []).filter(r => {
+      if (projectFilter && String(r.projectName || '').trim() !== projectFilter) return false;
+      if (disciplineFilter && String(r.discipline || '').trim() !== disciplineFilter) return false;
+      if (statusFilter && String(r.lifecycleStatus || '').trim() !== statusFilter) return false;
+      if (sourceFilter && String(r.sourceSheet || '').trim() !== sourceFilter) return false;
       if (!filter) return true;
       const hay = [
         r.actionNb, r.actionTitle, r.projectName, r.workPackage,
@@ -1829,16 +1921,21 @@ Import:
       return hay.includes(filter);
     });
 
+    if (rows && rows.length) {
+      $('actionsMeta').textContent = `Showing ${filtered.length} of ${rows.length} actions.`;
+    }
+
     if (!filtered.length) {
       setTableEmpty(tbody, 8, 'No actions found.');
       return;
     }
 
     filtered.forEach((r, idx) => {
+      const title = escapeHtml(r.actionTitle || '');
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="mono">${escapeHtml(r.actionNb || '')}</td>
-        <td>${escapeHtml(r.actionTitle || '')}</td>
+        <td title="${title}">${title}</td>
         <td class="mono">${escapeHtml(r.projectName || '')}</td>
         <td class="mono">${escapeHtml(r.workPackage || '')}</td>
         <td class="mono">${escapeHtml(r.discipline || '')}</td>
