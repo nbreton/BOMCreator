@@ -6,6 +6,22 @@ const PROP_RELEASED_QUEUE = 'NOTIF_RELEASED_QUEUE';
 const PROP_RELEASED_LAST_SENT_AT = 'NOTIF_RELEASED_LAST_SENT_AT';
 const PROP_RELEASED_NEXT_SEND_AT = 'NOTIF_RELEASED_NEXT_SEND_AT';
 
+function notif_escapeHtml_(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function notif_safeUrl_(value) {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  if (!/^https?:\/\//i.test(url)) return '';
+  return url;
+}
+
 function notif_ensureSheets_() {
   const ss = SpreadsheetApp.getActive();
 
@@ -77,15 +93,24 @@ function notif_updateSettings_(updates) {
     rowByKey[k] = i + 1;
   }
 
+  const rows = values.map(r => [r[0] || '', r[1] || '', r[2] || '']);
   const keys = Object.keys(updates || {});
+  const newRows = [];
+
   keys.forEach(k => {
     const v = String(updates[k] ?? '').trim();
     if (rowByKey[k]) {
-      sh.getRange(rowByKey[k], 2).setValue(v);
+      rows[rowByKey[k] - 1][1] = v;
     } else {
-      sh.appendRow([k, v, '']);
+      newRows.push([k, v, '']);
+      rowByKey[k] = rows.length + newRows.length;
     }
   });
+
+  if (newRows.length) rows.push(...newRows);
+  if (rows.length) {
+    sh.getRange(1, 1, rows.length, 3).setValues(rows);
+  }
 
   return { ok: true, updated: keys.length };
 }
@@ -128,6 +153,8 @@ function notif_sendEmail_(to, subject, htmlBody) {
 }
 
 function notif_htmlTemplate_(title, subtitle, contentHtml) {
+  const safeTitle = notif_escapeHtml_(title);
+  const safeSubtitle = subtitle ? notif_escapeHtml_(subtitle) : '';
   const cssCard = 'max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #dadce0;border-radius:12px;overflow:hidden;';
   const cssHdr = 'padding:16px 18px;background:#1a73e8;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;';
   const cssSub = 'padding:0 18px 10px 18px;background:#1a73e8;color:#e8f0fe;font-family:Arial,Helvetica,sans-serif;font-size:12px;';
@@ -139,8 +166,8 @@ function notif_htmlTemplate_(title, subtitle, contentHtml) {
   return `
   <div style="background:#f8f9fa;padding:24px;">
     <div style="${cssCard}">
-      <div style="${cssHdr}">${title}</div>
-      <div style="${cssSub}">${subtitle || ''}</div>
+      <div style="${cssHdr}">${safeTitle}</div>
+      <div style="${cssSub}">${safeSubtitle}</div>
       <div style="${cssBody}">
         ${contentHtml}
       </div>
@@ -204,17 +231,17 @@ function notif_onAgileIndexRefreshed_(latestList) {
   const cfg = cfg_getAll_();
   const prefix = String(settings.EMAIL_SUBJECT_PREFIX || '[VERDON mBOM]').trim();
   const downloadId = (cfg.DOWNLOAD_LIST_SS_ID || '').trim();
-  const downloadUrl = downloadId ? `https://docs.google.com/spreadsheets/d/${downloadId}` : '';
-  const appUrl = ScriptApp.getService().getUrl() || '';
+  const downloadUrl = notif_safeUrl_(downloadId ? `https://docs.google.com/spreadsheets/d/${downloadId}` : '');
+  const appUrl = notif_safeUrl_(ScriptApp.getService().getUrl() || '');
 
   const tableRows = changes.map(c => `
     <tr>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${c.site}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${c.partNorm}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${c.rev}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${c.date}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;font-family:monospace;">${c.tabName}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${c.buswaySupplier || ''}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(c.site)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(c.partNorm)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(c.rev)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(c.date)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;font-family:monospace;">${notif_escapeHtml_(c.tabName)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(c.buswaySupplier || '')}</td>
     </tr>`).join('');
 
   const content = `
@@ -233,8 +260,8 @@ function notif_onAgileIndexRefreshed_(latestList) {
       <tbody>${tableRows}</tbody>
     </table>
     <p style="margin-top:12px;">
-      ${appUrl ? `<a href="${appUrl}" target="_blank">Open mBOM App</a>` : ''}
-      ${downloadUrl ? ` • <a href="${downloadUrl}" target="_blank">Open “Downloading List of BOM lev 0”</a>` : ''}
+      ${appUrl ? `<a href="${appUrl}" target="_blank" rel="noopener">Open mBOM App</a>` : ''}
+      ${downloadUrl ? ` • <a href="${downloadUrl}" target="_blank" rel="noopener">Open “Downloading List of BOM lev 0”</a>` : ''}
     </p>`;
 
   const subject = `${prefix} Agile BOM published – review required (${changes.length})`;
@@ -259,18 +286,23 @@ function notif_sendFormCreated_(info) {
 
   const prefix = String(settings.EMAIL_SUBJECT_PREFIX || '[VERDON mBOM]').trim();
 
+  const safeUrl = notif_safeUrl_(info.url);
+  const subjectRev = String(info.mbomRev ?? '');
+  const safeRev = notif_escapeHtml_(subjectRev);
+  const safeChangeRef = notif_escapeHtml_(info.changeRef || '');
+  const safeCreatedBy = notif_escapeHtml_(info.createdBy || '');
   const content = `
     <p>A new <b>mBOM Form revision</b> has been created.</p>
     <ul>
-      <li><b>Revision:</b> Rev ${info.mbomRev}</li>
-      <li><b>ECR/ACT Ref:</b> ${info.changeRef || ''}</li>
-      <li><b>Created by:</b> ${info.createdBy || ''}</li>
+      <li><b>Revision:</b> Rev ${safeRev}</li>
+      <li><b>ECR/ACT Ref:</b> ${safeChangeRef}</li>
+      <li><b>Created by:</b> ${safeCreatedBy}</li>
     </ul>
-    <p><a href="${info.url}" target="_blank">Open Form Spreadsheet</a></p>
+    ${safeUrl ? `<p><a href="${safeUrl}" target="_blank" rel="noopener">Open Form Spreadsheet</a></p>` : ''}
     <p class="muted">Next steps: review and mark APPROVED in the app when validated.</p>`;
 
-  const subject = `${prefix} New mBOM Form created – Rev ${info.mbomRev}`;
-  const html = notif_htmlTemplate_('New mBOM Form Revision', `Rev ${info.mbomRev}`, content);
+  const subject = `${prefix} New mBOM Form created – Rev ${subjectRev}`;
+  const html = notif_htmlTemplate_('New mBOM Form Revision', `Rev ${subjectRev}`, content);
 
   const sendRes = notif_sendEmail_(to, subject, html);
   if (sendRes.ok) notif_log_('FORM_CREATED', to, subject, info);
@@ -387,19 +419,22 @@ function notif_sendReleasedDigestNow_() {
 
   const prefix = String(settings.EMAIL_SUBJECT_PREFIX || '[VERDON mBOM]').trim();
 
-  const rows = queue.map(e => `
+  const rows = queue.map(e => {
+    const safeUrl = notif_safeUrl_(e.url);
+    return `
     <tr>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${e.site || ''}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${e.projectKey}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">Rev ${e.mbomRev}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(e.site || '')}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(e.projectKey)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">Rev ${notif_escapeHtml_(e.mbomRev)}</td>
       <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">
-        <a href="${e.url}" target="_blank">Open</a>
+        ${safeUrl ? `<a href="${safeUrl}" target="_blank" rel="noopener">Open</a>` : ''}
       </td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;font-family:monospace;">${e.clusterTab || ''}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;font-family:monospace;">${e.mdaTab || ''}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${e.createdBy || ''}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${e.createdAt ? String(e.createdAt).replace('T',' ').replace('Z','') : ''}</td>
-    </tr>`).join('');
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;font-family:monospace;">${notif_escapeHtml_(e.clusterTab || '')}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;font-family:monospace;">${notif_escapeHtml_(e.mdaTab || '')}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(e.createdBy || '')}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(e.createdAt ? String(e.createdAt).replace('T',' ').replace('Z','') : '')}</td>
+    </tr>`;
+  }).join('');
 
   const content = `
     <p>The following RELEASED mBOM(s) were created.</p>

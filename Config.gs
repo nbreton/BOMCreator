@@ -68,16 +68,25 @@ function cfg_update_(updates) {
     rowByKey[k] = i + 1;
   }
 
+  const rows = values.map(r => [r[0] || '', r[1] || '']);
   const keys = Object.keys(updates || {});
+  const newRows = [];
+
   keys.forEach(key => {
     const v = updates[key];
     const val = (v === null || v === undefined) ? '' : String(v);
     if (rowByKey[key]) {
-      sh.getRange(rowByKey[key], 2).setValue(val);
+      rows[rowByKey[key] - 1][1] = val;
     } else {
-      sh.appendRow([key, val]);
+      newRows.push([key, val]);
+      rowByKey[key] = rows.length + newRows.length;
     }
   });
+
+  if (newRows.length) rows.push(...newRows);
+  if (rows.length) {
+    sh.getRange(1, 1, rows.length, 2).setValues(rows);
+  }
 
   CacheService.getDocumentCache().remove('CFG_ALL');
   return { ok: true, updated: keys.length };
