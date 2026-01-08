@@ -419,43 +419,73 @@ function notif_sendReleasedDigestNow_() {
 
   const prefix = String(settings.EMAIL_SUBJECT_PREFIX || '[VERDON mBOM]').trim();
 
+  const cellStyle = 'padding:6px 8px;border-bottom:1px solid #dadce0;word-break:break-word;vertical-align:top;font-size:12px;';
   const rows = queue.map(e => {
     const safeUrl = notif_safeUrl_(e.url);
     return `
     <tr>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(e.site || '')}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(e.projectKey)}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">Rev ${notif_escapeHtml_(e.mbomRev)}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">
+      <td style="${cellStyle}">${notif_escapeHtml_(e.site || '')}</td>
+      <td style="${cellStyle}">${notif_escapeHtml_(e.projectKey)}</td>
+      <td style="${cellStyle}">Rev ${notif_escapeHtml_(e.mbomRev)}</td>
+      <td style="${cellStyle}">
         ${safeUrl ? `<a href="${safeUrl}" target="_blank" rel="noopener">Open</a>` : ''}
       </td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;font-family:monospace;">${notif_escapeHtml_(e.clusterTab || '')}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;font-family:monospace;">${notif_escapeHtml_(e.mdaTab || '')}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(e.createdBy || '')}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #dadce0;">${notif_escapeHtml_(e.createdAt ? String(e.createdAt).replace('T',' ').replace('Z','') : '')}</td>
+      <td style="${cellStyle}font-family:monospace;">${notif_escapeHtml_(e.clusterTab || '')}</td>
+      <td style="${cellStyle}font-family:monospace;">${notif_escapeHtml_(e.mdaTab || '')}</td>
+      <td style="${cellStyle}">${notif_escapeHtml_(e.createdBy || '')}</td>
+      <td style="${cellStyle}">${notif_escapeHtml_(e.createdAt ? String(e.createdAt).replace('T',' ').replace('Z','') : '')}</td>
     </tr>`;
   }).join('');
 
-  const content = `
-    <p>The following RELEASED mBOM(s) were created.</p>
-    <table style="border-collapse:collapse;width:100%;border:1px solid #dadce0;">
+  const obsoleteRows = queue
+    .map(e => e.obsolete)
+    .filter(Boolean)
+    .map(o => {
+      const safeUrl = notif_safeUrl_(o.url);
+      return `
+      <tr>
+        <td style="${cellStyle}">${notif_escapeHtml_(o.projectKey || '')}</td>
+        <td style="${cellStyle}">Rev ${notif_escapeHtml_(o.mbomRev)}</td>
+        <td style="${cellStyle}">${notif_escapeHtml_(o.fileName || '')}</td>
+        <td style="${cellStyle}">${safeUrl ? `<a href="${safeUrl}" target="_blank" rel="noopener">Open</a>` : ''}</td>
+      </tr>`;
+    }).join('');
+
+  const obsoleteSection = obsoleteRows ? `
+    <p>The following RELEASED mBOM(s) were marked obsolete.</p>
+    <table style="border-collapse:collapse;width:100%;max-width:100%;table-layout:fixed;border:1px solid #dadce0;">
       <thead>
         <tr style="background:#f8f9fa;">
-          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;">Site</th>
-          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;">Project</th>
-          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;">Release</th>
-          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;">Link</th>
-          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;">Cluster Tab</th>
-          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;">MDA Tab</th>
-          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;">Created by</th>
-          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;">Created at</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">Project</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">Release</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">File</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">Link</th>
+        </tr>
+      </thead>
+      <tbody>${obsoleteRows}</tbody>
+    </table>` : '';
+
+  const content = `
+    <p>The following RELEASED mBOM(s) were created.</p>
+    <table style="border-collapse:collapse;width:100%;max-width:100%;table-layout:fixed;border:1px solid #dadce0;">
+      <thead>
+        <tr style="background:#f8f9fa;">
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">Site</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">Project</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">Release</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">Link</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">Cluster Tab</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">MDA Tab</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">Created by</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dadce0;font-size:12px;">Created at</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
-    </table>`;
+    </table>
+    ${obsoleteSection}`;
 
-  const subject = `${prefix} RELEASED mBOM digest (${queue.length})`;
-  const html = notif_htmlTemplate_('RELEASED mBOM digest', `Count: ${queue.length}`, content);
+  const subject = `${prefix} RELEASED mBOM notification`;
+  const html = notif_htmlTemplate_('RELEASED mBOM notification', `Count: ${queue.length}`, content);
 
   const sendRes = notif_sendEmail_(to, subject, html);
   if (sendRes.ok) notif_log_('RELEASED_DIGEST', to, subject, { count: queue.length, items: queue });

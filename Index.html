@@ -672,6 +672,7 @@ Import:
   let cacheClusterRows = [];
   let cacheMdaRows = [];
   let changeActionsCache = [];
+  const selectedActionRefs = new Set();
   let jobsPollTimer = null;
   let lastPollErrorAt = 0;
   const DIAG = {
@@ -739,6 +740,22 @@ Import:
     const body = $(bodyId);
     if (!body) return;
     body.classList.toggle('is-hidden', !!state && state !== 'ready');
+  }
+
+  function actionRefKey_(row){
+    return String(row?.actionNb || row?.actionTitle || '').trim();
+  }
+
+  function actionRowLink_(row){
+    const ssId = String(row?.sourceSpreadsheetId || '').trim();
+    const sheetId = String(row?.sourceSheetId || '').trim();
+    const rowNum = String(row?.sourceRow || '').trim();
+    if (!ssId || !sheetId || !rowNum) return '';
+    return `https://docs.google.com/spreadsheets/d/${encodeURIComponent(ssId)}/edit#gid=${encodeURIComponent(sheetId)}&range=A${encodeURIComponent(rowNum)}`;
+  }
+
+  function updateSelectedActionRefs_(){
+    $('formChangeRef').value = Array.from(selectedActionRefs.values()).join(' / ');
   }
 
   function setTableEmpty(tbody, colSpan, message){
@@ -1932,16 +1949,24 @@ Import:
 
     filtered.forEach((r, idx) => {
       const title = escapeHtml(r.actionTitle || '');
+      const actionRef = actionRefKey_(r);
+      const link = actionRowLink_(r);
+      const safeActionRef = escapeHtml(actionRef || '');
+      const safeLink = escapeHtml(link || '');
+      const isSelected = !!actionRef && selectedActionRefs.has(actionRef);
+      const actionCell = (actionRef && link)
+        ? `<a href="${safeLink}" target="_blank" rel="noopener">${safeActionRef}</a>`
+        : (safeActionRef || '—');
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="mono">${escapeHtml(r.actionNb || '')}</td>
+        <td class="mono">${actionCell}</td>
         <td title="${title}">${title}</td>
         <td class="mono">${escapeHtml(r.projectName || '')}</td>
         <td class="mono">${escapeHtml(r.workPackage || '')}</td>
         <td class="mono">${escapeHtml(r.discipline || '')}</td>
         <td class="mono">${escapeHtml(r.lifecycleStatus || '')}</td>
         <td class="mono">${escapeHtml(r.sourceSheet || '')}</td>
-        <td><button class="btn" data-act="pickAction" data-idx="${idx}">Use</button></td>
+        <td><button class="btn ${isSelected ? 'primary' : ''}" data-act="pickAction" data-idx="${idx}" ${actionRef ? '' : 'disabled'}>${isSelected ? 'Selected' : 'Add'}</button></td>
       `;
       tbody.appendChild(tr);
     });
@@ -1951,11 +1976,20 @@ Import:
         const idx = Number(btn.dataset.idx || 0);
         const row = filtered[idx];
         if (!row) return;
-        if (row.actionNb) $('formChangeRef').value = row.actionNb;
-        if (row.actionTitle && !$('formDesc').value.trim()) {
-          $('formDesc').value = row.actionTitle;
+        const ref = actionRefKey_(row);
+        if (!ref) return;
+        if (selectedActionRefs.has(ref)) {
+          selectedActionRefs.delete(ref);
+          toast('info', `Removed action ${ref}.`);
+        } else {
+          selectedActionRefs.add(ref);
+          if (row.actionTitle && !$('formDesc').value.trim()) {
+            $('formDesc').value = row.actionTitle;
+          }
+          toast('success', `Added action ${ref}.`);
         }
-        toast('success', `Selected action ${row.actionNb || row.actionTitle || 'action'}.`);
+        updateSelectedActionRefs_();
+        renderChangeActions(changeActionsCache);
       });
     });
   }

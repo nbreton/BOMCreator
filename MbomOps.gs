@@ -114,7 +114,7 @@ function mbom_createReleasedForProject_(params) {
     const url = `https://docs.google.com/spreadsheets/d/${fileId}`;
 
     // Obsolete previous RELEASED after new copy is created (move to Obsolete folder)
-    mbom_obsoletePreviousReleased_({ projectKey, releasedFolderId, releasedObsoleteId });
+    const obsoleteRes = mbom_obsoletePreviousReleased_({ projectKey, releasedFolderId, releasedObsoleteId });
 
     const ss = SpreadsheetApp.openById(fileId);
 
@@ -219,7 +219,7 @@ function mbom_createReleasedForProject_(params) {
       createdAt: new Date().toISOString(),
       createdBy: user,
       status: 'RELEASED',
-      notes: freeze ? 'Agile inputs frozen as values' : 'Agile inputs linked'
+      notes: freeze ? 'Agile inputs copied as values' : 'Agile inputs copied'
     });
 
     // Email notification: RELEASED enqueue (digest grouped)
@@ -233,7 +233,8 @@ function mbom_createReleasedForProject_(params) {
         clusterTab: String(cluster.TabName),
         mdaTab: includeMda ? String(mda.TabName) : '',
         createdBy: user,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        obsolete: obsoleteRes?.obsolete || null
       });
     } catch (e) {
       log_warn_('Released digest enqueue failed', { error: e.message });
@@ -277,14 +278,22 @@ function mbom_obsoletePreviousReleased_(params) {
   );
   if (!prev || !prev.FileId) return { ok: true, skipped: 'no previous release' };
 
+  const obsoleteInfo = {
+    projectKey: String(prev.ProjectKey || projectKey),
+    mbomRev: prev.MbomRev,
+    fileId: prev.FileId,
+    url: prev.Url || '',
+    fileName: prev.FileName || ''
+  };
+
   try {
     drive_moveFileToFolder_(prev.FileId, fromFolderId, toFolderId);
     files_setStatus_(prev.FileId, 'OBSOLETE');
     log_info_('Obsoleted previous RELEASED mBOM', { projectKey, fileId: prev.FileId, mbomRev: prev.MbomRev });
-    return { ok: true, moved: true };
+    return { ok: true, moved: true, obsolete: obsoleteInfo };
   } catch (e) {
     log_warn_('Failed to obsolete previous RELEASED mBOM', { projectKey, fileId: prev.FileId, error: e.message });
-    return { ok: false, error: e.message };
+    return { ok: false, error: e.message, obsolete: obsoleteInfo };
   }
 }
 
@@ -309,22 +318,37 @@ function mbom_obsoleteFormFile_(params) {
 function mbom_setAgileInputs_(ss, params) {
   const sourceIdRaw = String(params.downloadListId || '').trim();
   const sourceId = sourceIdRaw || '1q9Y2NgS4SAJGZ2OMtQafjTCCFWgQFldlmduQnW-qK7I';
-  const rangeA1 = 'A1:U400';
+  const copyRange = 'A2:J200';
+  const destRange = 'A5:J203';
 
-  const applyInputs = (sheetName, tabName) => {
+  const copyInputs = (sheetName, tabName, overrideSourceId) => {
     const tab = String(tabName || '').trim();
-    if (!tab) return false;
     const sh = ss.getSheetByName(sheetName);
     if (!sh) return false;
-    sh.getRange('B1').setValue(sourceId);
-    sh.getRange('B2').setValue(tab);
-    sh.getRange('B3').setValue(rangeA1);
-    mbom_authorizeImportrange_(sh, sourceId, tab, rangeA1);
+    sh.getRange('B1:B3').clearContent();
+    if (!tab) {
+      sh.getRange(destRange).clearContent();
+      sh.getRange('A2').clearContent();
+      return false;
+    }
+    const srcId = String(overrideSourceId || sourceId || '').trim();
+    if (!srcId) return false;
+    const src = SpreadsheetApp.openById(srcId);
+    const srcSheet = src.getSheetByName(tab);
+    if (!srcSheet) {
+      log_warn_('Agile source tab missing', { sheet: sheetName, tab, sourceId: srcId });
+      return false;
+    }
+    const values = srcSheet.getRange(copyRange).getValues();
+    sh.getRange(destRange).setValues(values);
+    const url = `https://docs.google.com/spreadsheets/d/${srcId}/edit#gid=${srcSheet.getSheetId()}`;
+    sh.getRange('A2').setFormula(`=HYPERLINK("${url}","Open ${tab}")`);
     return true;
   };
 
-  applyInputs('INPUT_BOM_AGILE_Cluster', params.clusterTabName);
-  applyInputs('INPUT_BOM_AGILE_MDA', params.mdaTabName);
+  copyInputs('INPUT_BOM_AGILE_Cluster', params.clusterTabName);
+  copyInputs('INPUT_BOM_AGILE_MDA', params.mdaTabName);
+  copyInputs('INPUT_BOM_AGILE_WP5 KOPs', 'BOM Lvl0/Lvl1 WP5', '1q9Y2NgS4SAJGZ2OMtQafjTCCFWgQFldlmduQnW-qK7I');
 
   SpreadsheetApp.flush();
 }
@@ -347,7 +371,7 @@ function mbom_authorizeImportrange_(sheet, sourceId, tabName, rangeA1) {
 }
 
 function mbom_freezeAgileInputs_(ss, downloadListId, mdaTabName, clusterTabName) {
-  const rangeA1 = 'A1:U400';
+  const rangeA1 = 'A5:J203';
   const freezeSheet = (sheetName, tabName) => {
     const tab = String(tabName || '').trim();
     if (!tab) return false;

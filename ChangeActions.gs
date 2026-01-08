@@ -91,6 +91,7 @@ function change_actions_list_() {
 
     const data = sh.getRange(CHANGE_ACTIONS_HEADER_ROW + 1, 1, limit, lastCol).getValues();
 
+    const sheetId = sh.getSheetId();
     data.forEach((row, idx) => {
       const actionNb = String(row[col.actionNb] || '').trim();
       const actionTitle = String(row[col.actionTitle] || '').trim();
@@ -117,7 +118,9 @@ function change_actions_list_() {
         xvtAction: String(row[col.xvtAction] || '').trim(),
         picture: String(row[col.picture] || '').trim(),
         sourceSheet: sheetName,
-        sourceRow: CHANGE_ACTIONS_HEADER_ROW + 1 + idx
+        sourceRow: CHANGE_ACTIONS_HEADER_ROW + 1 + idx,
+        sourceSheetId: sheetId,
+        sourceSpreadsheetId: cfg.spreadsheetId
       });
     });
   });
