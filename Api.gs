@@ -748,3 +748,10 @@ function api_restartJobs(payload) {
     return jobs_restartRunner_();
   });
 }
+
+function api_getArchitectureSpec() {
+  return api_handleRequest_('api_getArchitectureSpec', () => ({
+    spec: arch_getSpec_(),
+    implementationSteps: arch_getImplementationSteps_()
+  }));
+}
