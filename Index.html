@@ -2,7 +2,7 @@
 <html>
 <head>
   <base target="_top">
-  <?!= include('Style'); ?>
+  <?!= include('style'); ?>
 </head>
 <body>
   <header class="topbar">
@@ -717,11 +717,11 @@ Import:
         description: $('formDesc').value.trim()
       };
       const res = await run('Scheduling Form copy…', 'api_scheduleFormRevision', payload);
-      out.innerHTML = `Scheduled Job: <span class="mono">${res.jobId}</span>. Track it in “Copy Monitoring”.`;
+      out.innerHTML = `Scheduled Job: <span class="mono">${escapeHtml(res.jobId)}</span>. Track it in “Copy Monitoring”.`;
       await bootstrap();
       switchTo('monitoring');
     } catch(e){
-      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${escapeHtml(e.message || e)}`;
       notifyError('Schedule form failed', e);
     }
   });
@@ -751,11 +751,11 @@ Import:
       };
 
       const res = await run('Scheduling RELEASED copy…', 'api_scheduleReleasedForProject', payload);
-      out.innerHTML = `Scheduled Job: <span class="mono">${res.jobId}</span>. Track it in “Copy Monitoring”.`;
+      out.innerHTML = `Scheduled Job: <span class="mono">${escapeHtml(res.jobId)}</span>. Track it in “Copy Monitoring”.`;
       await bootstrap();
       switchTo('monitoring');
     } catch(e){
-      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${escapeHtml(e.message || e)}`;
       notifyError('Schedule RELEASED failed', e);
     }
   });
@@ -767,11 +767,11 @@ Import:
     out.textContent = 'Importing…';
     try{
       const res = await run('Importing files…', 'api_importReleased', { text: $('importText').value });
-      out.innerHTML = `<div class="mono">Imported: ${res.imported} • Skipped: ${res.skipped} • Errors: ${res.errors.length}</div>
-        <div class="mono">${(res.errors||[]).slice(0,10).map(e=>`• ${e}`).join('<br>')}</div>`;
+      out.innerHTML = `<div class="mono">Imported: ${escapeHtml(res.imported)} • Skipped: ${escapeHtml(res.skipped)} • Errors: ${escapeHtml(res.errors.length)}</div>
+        <div class="mono">${(res.errors||[]).slice(0,10).map(e=>`• ${escapeHtml(e)}`).join('<br>')}</div>`;
       await bootstrap();
     } catch(e){
-      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${escapeHtml(e.message || e)}`;
       notifyError('Import failed', e);
     }
   });
@@ -785,10 +785,10 @@ Import:
       const updates = {};
       $('tblNotif').querySelectorAll('input[data-key]').forEach(inp => updates[inp.dataset.key] = inp.value);
       const res = await run('Saving notifications…', 'api_updateNotifSettings', { updates });
-      out.innerHTML = `Saved. Updated keys: ${res.updated}`;
+      out.innerHTML = `Saved. Updated keys: ${escapeHtml(res.updated)}`;
       await bootstrap();
     } catch(e){
-      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${escapeHtml(e.message || e)}`;
       notifyError('Saving notifications failed', e);
     }
   });
@@ -802,10 +802,10 @@ Import:
       const updates = {};
       $('tblConfig').querySelectorAll('input[data-key]').forEach(inp => updates[inp.dataset.key] = inp.value);
       const res = await run('Saving configuration…', 'api_updateConfig', { updates });
-      out.innerHTML = `Saved. Updated keys: ${res.updated}`;
+      out.innerHTML = `Saved. Updated keys: ${escapeHtml(res.updated)}`;
       await bootstrap();
     } catch(e){
-      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${escapeHtml(e.message || e)}`;
       notifyError('Saving configuration failed', e);
     }
   });
@@ -834,7 +834,7 @@ Import:
       if (!res) throw new Error('api_getProjectData returned empty/invalid response.');
       renderProjectTree(res);
     } catch(e){
-      $('projectTree').innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+      $('projectTree').innerHTML = `<span style="color:var(--red)">Error:</span> ${escapeHtml(e.message || e)}`;
       notifyError('Loading project data failed', e);
     }
   });
@@ -1261,7 +1261,7 @@ Import:
     });
 
     $('settingsHint').innerHTML =
-      `Web App URL: <span class="mono">${BOOT.webAppUrl || '(not deployed)'}</span><br>
+      `Web App URL: <span class="mono">${escapeHtml(BOOT.webAppUrl || '(not deployed)')}</span><br>
        Logos: set COMPANY_LOGO_URL and CUSTOMER_LOGO_URL in CONFIG.`;
   }
 
@@ -1352,12 +1352,12 @@ Import:
 
   function updateAgileMeta(){
     const c = findRow(cacheClusterRows, $('relClusterTab').value);
-    if (c) $('relClusterMeta').innerHTML = `Selected: Rev ${c.rev} • ${c.downloadDate} • ${pill(c.approvalStatus)}`;
+    if (c) $('relClusterMeta').innerHTML = `Selected: Rev ${escapeHtml(c.rev)} • ${escapeHtml(c.downloadDate)} • ${pill(c.approvalStatus)}`;
 
     const p = currentProject();
     if (p && p.includeMda) {
       const m = findRow(cacheMdaRows, $('relMdaTab').value);
-      if (m) $('relMdaMeta').innerHTML = `Selected: Rev ${m.rev} • ${m.downloadDate} • ${pill(m.approvalStatus)}`;
+      if (m) $('relMdaMeta').innerHTML = `Selected: Rev ${escapeHtml(m.rev)} • ${escapeHtml(m.downloadDate)} • ${pill(m.approvalStatus)}`;
     }
   }
 
