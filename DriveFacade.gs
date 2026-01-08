@@ -13,6 +13,7 @@ function drive_copyFileWithRetry_(srcFileId, destFolderId, newName, maxAttempts 
         const fileId = drive_copyFile_(srcFileId, destFolderId, newName);
         Utilities.sleep(initialDelayMs);
         drive_openSpreadsheetWithRetry_(fileId, openWaitMs);
+        drive_finalizeCopiedFile_(fileId, destFolderId, newName);
         return fileId;
       } catch (e) {
         lastErr = e;
@@ -23,6 +24,28 @@ function drive_copyFileWithRetry_(srcFileId, destFolderId, newName, maxAttempts 
     throw lastErr || new Error('Drive copy failed');
   } finally {
     lock.releaseLock();
+  }
+}
+
+function drive_finalizeCopiedFile_(fileId, destFolderId, newName) {
+  const file = DriveApp.getFileById(fileId);
+  if (newName) {
+    file.setName(newName);
+  }
+
+  if (destFolderId) {
+    let inDest = false;
+    const parents = file.getParents();
+    while (parents.hasNext()) {
+      if (parents.next().getId() === destFolderId) {
+        inDest = true;
+        break;
+      }
+    }
+    if (!inDest) {
+      const destFolder = DriveApp.getFolderById(destFolderId);
+      destFolder.addFile(file);
+    }
   }
 }
 

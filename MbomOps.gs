@@ -106,15 +106,15 @@ function mbom_createReleasedForProject_(params) {
     const effective = projects_getEffective_(projectKey);
     const includeMda = (params.includeMda !== undefined) ? !!params.includeMda : !!effective.includeMda;
 
-    // Obsolete previous RELEASED before creating new one (move to Obsolete folder)
-    mbom_obsoletePreviousReleased_({ projectKey, releasedFolderId, releasedObsoleteId });
-
     const releaseRev = Number(params.releaseRev || files_nextRev_('RELEASED', projectKey));
     const prefix = cfg_get_('NAME_PREFIX');
     const newName = `${prefix} - ${projectKey} - Rev ${releaseRev}`;
 
     const fileId = drive_copyFileWithRetry_(approvedFormId, releasedFolderId, newName);
     const url = `https://docs.google.com/spreadsheets/d/${fileId}`;
+
+    // Obsolete previous RELEASED after new copy is created (move to Obsolete folder)
+    mbom_obsoletePreviousReleased_({ projectKey, releasedFolderId, releasedObsoleteId });
 
     const ss = SpreadsheetApp.openById(fileId);
 

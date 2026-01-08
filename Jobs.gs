@@ -132,11 +132,16 @@ function jobs_run_() {
 
     jobs_put_(job);
 
-    // Continue if still running
+    // Continue if still running or queued work remains
     if (job.status === 'RUNNING') {
       jobs_schedule_();
     } else {
-      jobs_cleanupTriggers_();
+      const nextJob = jobs_getNext_();
+      if (nextJob) {
+        jobs_schedule_();
+      } else {
+        jobs_cleanupTriggers_();
+      }
     }
 
   } catch (e) {
