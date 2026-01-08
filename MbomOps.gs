@@ -319,7 +319,7 @@ function mbom_setAgileInputs_(ss, params) {
   const sourceIdRaw = String(params.downloadListId || '').trim();
   const sourceId = sourceIdRaw || '1q9Y2NgS4SAJGZ2OMtQafjTCCFWgQFldlmduQnW-qK7I';
   const copyRange = 'A1:U400';
-  const destRange = 'A4:U403';
+  const destRange = 'A3:U402';
 
   const copyInputs = (sheetName, tabName, overrideSourceId) => {
     const tab = String(tabName || '').trim();
@@ -371,7 +371,7 @@ function mbom_authorizeImportrange_(sheet, sourceId, tabName, rangeA1) {
 }
 
 function mbom_freezeAgileInputs_(ss, downloadListId, mdaTabName, clusterTabName) {
-  const rangeA1 = 'A4:U403';
+  const rangeA1 = 'A3:U402';
   const freezeSheet = (sheetName, tabName) => {
     const tab = String(tabName || '').trim();
     if (!tab) return false;

@@ -989,7 +989,8 @@ Import:
   function formatAgileTabName(tabName){
     const raw = String(tabName || '').trim();
     if (!raw) return '';
-    const firstToken = raw.split(/\s+/)[0];
+    const noSuffix = raw.split(/\s+-\s+/)[0];
+    const firstToken = noSuffix.split(/\s+/)[0];
     return firstToken || raw;
   }
 
