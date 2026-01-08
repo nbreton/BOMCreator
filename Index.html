@@ -22,6 +22,7 @@
             <div id="opLabel">Idle</div>
           </div>
           <button class="iconbtn" id="btnRefreshAgile" title="Refresh Agile Index">↻</button>
+          <button class="iconbtn" id="btnRefreshData" title="Refresh App Data">⟳</button>
           <button class="iconbtn" id="btnFullscreen" title="Fullscreen / Open Web App">⛶</button>
           <img id="logoCustomer" class="logo" alt="Customer logo">
         </div>
@@ -69,11 +70,17 @@
             </div>
             <div class="state" id="state-projects"></div>
             <div class="cardBody" id="body-projects">
-              <div class="row">
-                <button class="btn" id="btnSelectEligible">Select eligible (approved)</button>
-                <button class="btn" id="btnClearSelection">Clear selection</button>
-                <button class="btn primary" id="btnScheduleSelected">Schedule RELEASED for selected</button>
-                <button class="btn" id="btnScheduleAllEligible">Schedule RELEASED for ALL eligible</button>
+              <div class="row row-split">
+                <div class="btnGroup">
+                  <span class="btnGroupLabel">Filters</span>
+                  <button class="btn filter" id="btnSelectEligible">Select eligible (approved)</button>
+                  <button class="btn filter" id="btnClearSelection">Clear selection</button>
+                </div>
+                <div class="btnGroup actions">
+                  <span class="btnGroupLabel">Actions</span>
+                  <button class="btn primary" id="btnScheduleSelected">Schedule RELEASED for selected</button>
+                  <button class="btn warn" id="btnScheduleAllEligible">Schedule RELEASED for ALL eligible</button>
+                </div>
                 <span class="mono" id="batchHint"></span>
               </div>
 
@@ -82,9 +89,6 @@
                   <tr>
                     <th></th>
                     <th>Project</th>
-                    <th>Site</th>
-                    <th>ClusterGroup</th>
-                    <th>MDA required?</th>
                     <th>Cluster Agile</th>
                     <th>MDA Agile</th>
                     <th>Latest RELEASED</th>
@@ -159,6 +163,32 @@
             </div>
             <div class="state" id="state-agile"></div>
             <div class="cardBody" id="body-agile">
+              <div class="row tableFilters">
+                <div>
+                  <label>Site</label>
+                  <select id="agileFilterSite"></select>
+                </div>
+                <div>
+                  <label>Part</label>
+                  <select id="agileFilterPart"></select>
+                </div>
+                <div>
+                  <label>Tab</label>
+                  <input id="agileFilterTab" placeholder="Search tab">
+                </div>
+                <div>
+                  <label>Busway Supplier</label>
+                  <select id="agileFilterBusway"></select>
+                </div>
+                <div>
+                  <label>Approval</label>
+                  <select id="agileFilterApproval"></select>
+                </div>
+                <div class="filterActions">
+                  <button class="btn" id="btnAgileClearFilters">Clear filters</button>
+                  <button class="btn" id="btnAgileToggleHistory">Show history</button>
+                </div>
+              </div>
               <table class="table" id="tblAgileLatest">
                 <thead>
                   <tr>
@@ -185,13 +215,6 @@
             </div>
             <div class="state" id="state-approvals"></div>
             <div class="cardBody" id="body-approvals">
-              <div class="row">
-                <label style="margin:0;">
-                  <input type="checkbox" id="chkPendingOnly" checked>
-                  Show pending only
-                </label>
-              </div>
-
               <div class="banner" style="margin-top:10px;">
                 Create RELEASED is disabled until required approvals are completed (Agile approvals, and Form approval if enforced).
               </div>
@@ -310,21 +333,23 @@
                     </select>
                     <button class="btn" id="btnClearActionFilters">Clear</button>
                   </div>
-                  <table class="table" id="tblActions" style="margin-top:10px;">
-                    <thead>
-                      <tr>
-                        <th>Action NB</th>
-                        <th>Action Title</th>
-                        <th>Project</th>
-                        <th>Work Package</th>
-                        <th>Discipline</th>
-                        <th>Status</th>
-                        <th>Source</th>
-                        <th>Pick</th>
-                      </tr>
-                    </thead>
-                    <tbody></tbody>
-                  </table>
+                  <div class="scrollTable">
+                    <table class="table" id="tblActions" style="margin-top:10px;">
+                      <thead>
+                        <tr>
+                          <th>Action NB</th>
+                          <th>Action Title</th>
+                          <th>Project</th>
+                          <th>Work Package</th>
+                          <th>Discipline</th>
+                          <th>Status</th>
+                          <th>Source</th>
+                          <th>Pick</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -422,7 +447,7 @@
                 <button class="btn" id="btnRefreshJobs">Refresh jobs</button>
                 <button class="btn warn" id="btnRestartJobs">Restart job runner</button>
                 <label style="margin:0;">
-                  <input type="checkbox" id="chkAutoJobs" checked>
+                  <input type="checkbox" id="chkAutoJobs">
                   Auto-refresh while running
                 </label>
               </div>
@@ -673,6 +698,7 @@ Import:
   let cacheMdaRows = [];
   let changeActionsCache = [];
   const selectedActionRefs = new Set();
+  let agileHistoryEnabled = false;
   let jobsPollTimer = null;
   let lastPollErrorAt = 0;
   const DIAG = {
@@ -960,6 +986,26 @@ Import:
     return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label || 'Open')}</a>`;
   }
 
+  function formatAgileTabName(tabName){
+    const raw = String(tabName || '').trim();
+    if (!raw) return '';
+    const firstToken = raw.split(/\s+/)[0];
+    return firstToken || raw;
+  }
+
+  function agileTabLink(tabName, tabUrl){
+    const label = formatAgileTabName(tabName);
+    if (!label) return '<span class="mono">—</span>';
+    if (!tabUrl) return `<span class="mono">${escapeHtml(label)}</span>`;
+    return fileLink(tabUrl, label);
+  }
+
+  function confirmFileAction(title, details){
+    const lines = Array.isArray(details) ? details.filter(Boolean) : [];
+    const msg = `${title}\n\n${lines.join('\n')}\n\nConfirm? (Yes/No)`;
+    return confirm(msg);
+  }
+
   function fmtDate(iso){
     if (!iso) return '';
     try{
@@ -978,7 +1024,10 @@ Import:
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       $('page-' + page).classList.add('active');
 
-      if (page === 'monitoring') await loadSections(['jobs'], 'Loading jobs…');
+      if (page === 'monitoring') {
+        await loadSections(['jobs'], 'Loading jobs…');
+        await refreshJobs();
+      }
       if (page === 'createMbom') await loadSections(['forms'], 'Loading forms…');
       if (page === 'settings') await loadSections(['config'], 'Loading settings…');
       if (page === 'notifications') await loadSections(['notifications'], 'Loading notifications…');
@@ -1013,6 +1062,15 @@ Import:
       notifySuccess('Agile index refreshed.');
     } catch(e){
       notifyError('Agile refresh failed', e);
+    }
+  });
+
+  $('btnRefreshData').addEventListener('click', async () => {
+    try {
+      await bootstrap();
+      notifySuccess('App data refreshed.');
+    } catch(e){
+      notifyError('App refresh failed', e);
     }
   });
 
@@ -1057,6 +1115,17 @@ Import:
         affectedItems: $('formAffected').value.trim(),
         description: $('formDesc').value.trim()
       };
+      const ok = confirmFileAction('Schedule Form revision copy?', [
+        `Base Form ID: ${payload.baseFormFileId || '—'}`,
+        `New Revision: ${payload.newFormRev || '—'}`,
+        `Change Ref: ${payload.ecrActRef || '—'}`,
+        `Affected Items: ${payload.affectedItems || '—'}`,
+        `Description: ${payload.description || '—'}`
+      ]);
+      if (!ok) {
+        out.textContent = 'Cancelled.';
+        return;
+      }
       const res = await run('Scheduling Form copy…', 'api_scheduleFormRevision', payload);
       out.innerHTML = `Scheduled Job: <span class="mono">${escapeHtml(res.jobId)}</span>. Track it in “Copy Monitoring”.`;
       notifySuccess(`Form revision scheduled (Job ${res.jobId}).`);
@@ -1125,6 +1194,20 @@ Import:
         affectedItems: $('relAffected').value.trim(),
         description: $('relDesc').value.trim()
       };
+      const ok = confirmFileAction('Schedule RELEASED mBOM copy?', [
+        `Project: ${payload.projectKey}`,
+        `Cluster Agile: ${formatAgileTabName(payload.agileTabCluster) || '—'}`,
+        `MDA Agile: ${includeMda ? (formatAgileTabName(payload.agileTabMDA) || '—') : 'Not required'}`,
+        `Freeze Agile Inputs: ${payload.freezeAgileInputs ? 'YES' : 'NO'}`,
+        `Approved Form ID: ${payload.approvedFormFileId || '—'}`,
+        `ECO: ${payload.eco || '—'}`,
+        `Affected Items: ${payload.affectedItems || '—'}`,
+        `Description: ${payload.description || '—'}`
+      ]);
+      if (!ok) {
+        out.textContent = 'Cancelled.';
+        return;
+      }
 
       const res = await run('Scheduling RELEASED copy…', 'api_scheduleReleasedForProject', payload);
       out.innerHTML = `Scheduled Job: <span class="mono">${escapeHtml(res.jobId)}</span>. Track it in “Copy Monitoring”.`;
@@ -1203,9 +1286,6 @@ Import:
     }
   });
 
-  // Approvals filter
-  $('chkPendingOnly').addEventListener('change', () => renderApprovals());
-
   // Project Data
   $('btnLoadProjectData').addEventListener('click', async () => {
     const pk = $('pdProject').value;
@@ -1245,6 +1325,12 @@ Import:
         toast('warn', 'No projects selected.');
         return;
       }
+      const ok = confirmFileAction('Schedule RELEASED for selected projects?', [
+        `Projects: ${selected.join(', ')}`,
+        `Count: ${selected.length}`,
+        `Freeze Agile Inputs: ${BOOT.config.freezeDefault === true ? 'YES' : 'NO'}`
+      ]);
+      if (!ok) return;
 
       const res = await run('Scheduling batch RELEASED…', 'api_scheduleReleasedForSelected', {
         projectKeys: selected,
@@ -1264,6 +1350,11 @@ Import:
 
   $('btnScheduleAllEligible').addEventListener('click', async () => {
     try{
+      const ok = confirmFileAction('Schedule RELEASED for ALL eligible projects?', [
+        'Projects: Eligible only (approved)',
+        `Freeze Agile Inputs: ${BOOT.config.freezeDefault === true ? 'YES' : 'NO'}`
+      ]);
+      if (!ok) return;
       const res = await run('Scheduling ALL eligible RELEASED…', 'api_scheduleReleasedForAll', {
         onlyEligible: true,
         freezeAgileInputs: (BOOT.config.freezeDefault === true),
@@ -1282,6 +1373,29 @@ Import:
   $('relProject').addEventListener('change', refreshReleaseSelectors);
   $('relClusterTab').addEventListener('change', async () => { updateAgileMeta(); updateBuswaySuggestions(); updateEcoSummary(); await updateControlledReleaseMsg(); });
   $('relMdaTab').addEventListener('change', async () => { updateAgileMeta(); updateBuswaySuggestions(); updateEcoSummary(); await updateControlledReleaseMsg(); });
+  ['agileFilterSite', 'agileFilterPart', 'agileFilterTab', 'agileFilterBusway', 'agileFilterApproval']
+    .forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener('input', () => renderAgileLatest(getAgileRowsForDisplay_()));
+      el.addEventListener('change', () => renderAgileLatest(getAgileRowsForDisplay_()));
+    });
+  $('btnAgileClearFilters').addEventListener('click', () => {
+    $('agileFilterSite').value = '';
+    $('agileFilterPart').value = '';
+    $('agileFilterTab').value = '';
+    $('agileFilterBusway').value = '';
+    $('agileFilterApproval').value = '';
+    renderAgileLatest(getAgileRowsForDisplay_());
+  });
+  $('btnAgileToggleHistory').addEventListener('click', async () => {
+    agileHistoryEnabled = !agileHistoryEnabled;
+    $('btnAgileToggleHistory').textContent = agileHistoryEnabled ? 'Show latest only' : 'Show history';
+    if (agileHistoryEnabled && !BOOT.loaded?.agileAll) {
+      await loadSections(['agileAll'], 'Loading Agile BOM history…');
+    }
+    renderAgileLatest(getAgileRowsForDisplay_());
+  });
 
   function switchTo(page){
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
@@ -1449,7 +1563,7 @@ Import:
 
     if (!projects || !projects.length) {
       setStateWithBody('state-projects', 'body-projects', 'empty', { title: 'No projects loaded', body: 'Projects will appear once the dashboard data is synced.' });
-      setTableEmpty(tbody, 9, 'No projects found.');
+      setTableEmpty(tbody, 6, 'No projects found.');
       return;
     }
     setStateWithBody('state-projects', 'body-projects', 'ready');
@@ -1461,21 +1575,23 @@ Import:
       const relCell = rel ? `${fileLink(rel.url, `Rev ${rel.mbomRev}`)}<div class="mono">${relStatus}</div>` : '<span class="mono">—</span>';
       const projectKey = escapeHtml(p.projectKey);
       const site = escapeHtml(p.site);
-      const clusterTab = escapeHtml(p.clusterTab || '');
-      const mdaTab = escapeHtml(p.mdaTab || '');
+      const clusterTab = agileTabLink(p.clusterTab, p.clusterTabUrl);
+      const mdaTab = agileTabLink(p.mdaTab, p.mdaTabUrl);
       const clusterRev = escapeHtml(p.clusterRev || '');
       const mdaRev = escapeHtml(p.mdaRev || '');
+      const clusterGroup = escapeHtml(p.clusterGroup || '');
 
       const tr = document.createElement('tr');
+      if (eligible) tr.classList.add('project-eligible');
       if (p.hasNewAgileRevision) tr.classList.add('project-alert');
       tr.innerHTML = `
         <td><input type="checkbox" data-projchk="${projectKey}"></td>
-        <td><span class="pill ok">${projectKey}</span></td>
-        <td class="mono">${site}</td>
-        <td class="mono">${escapeHtml(String(p.clusterGroup || ''))}</td>
-        <td>${p.includeMda ? '<span class="pill ok">YES</span>' : '<span class="pill warn">NO</span>'}</td>
-        <td class="mono">Rev ${clusterRev} • ${clusterTab}<br>${pill(p.clusterApproval)}</td>
-        <td class="mono">${p.includeMda ? `Rev ${mdaRev} • ${mdaTab}<br>${pill(p.mdaApproval)}` : 'Hidden (not required)'}</td>
+        <td>
+          <span class="pill ok">${projectKey}</span>
+          <div class="mono">Site: ${site || '—'} • ClusterGroup: ${clusterGroup || '—'}</div>
+        </td>
+        <td class="mono">${clusterRev ? `Rev ${clusterRev} • ${clusterTab}<br>${pill(p.clusterApproval)}` : '<span class="mono">—</span>'}</td>
+        <td class="mono">${p.includeMda ? (mdaRev ? `Rev ${mdaRev} • ${mdaTab}<br>${pill(p.mdaApproval)}` : '<span class="mono">—</span>') : '<span class="mono">—</span>'}</td>
         <td>${relCell}</td>
         <td>${eligible ? '<span class="pill ok">Eligible</span>' : '<span class="pill warn">Blocked</span>'}</td>
       `;
@@ -1572,7 +1688,8 @@ Import:
       const fileName = escapeHtml(f.fileName || '');
       const createdAt = escapeHtml(fmtDate(f.createdAt));
       const eco = escapeHtml(f.eco || '');
-      const isObsolete = String(f.status || '').toUpperCase() === 'OBSOLETE';
+      const statusUpper = String(f.status || '').toUpperCase();
+      const isObsolete = statusUpper === 'OBSOLETE';
       const canObsolete = !isCurrent && !isObsolete;
 
       const tr = document.createElement('tr');
@@ -1584,18 +1701,18 @@ Import:
         <td>${fileLink(f.url,'Open')}</td>
         <td class="mono">${createdAt}</td>
         <td class="mono">${eco}</td>
-        <td>
-          ${String(f.status || '').toUpperCase() === 'APPROVED'
-            ? '<span class="mono">Approved</span>'
+        <td class="actionCell">
+          ${statusUpper === 'APPROVED'
+            ? '<button class="btn" disabled>Approved</button>'
             : `<button class="btn" data-act="approveForm" data-file="${fileId}">Approve</button>`
           }
           ${isCurrent
-            ? '<span class="mono" style="margin-left:6px;">Current Approved</span>'
+            ? '<button class="btn" disabled>Current</button>'
             : `<button class="btn primary" data-act="setCurrentApproved" data-file="${fileId}">Set Current</button>`
           }
           ${canObsolete
             ? `<button class="btn danger" data-act="obsoleteForm" data-file="${fileId}">Obsolete</button>`
-            : '<span class="mono" style="margin-left:6px;">—</span>'
+            : '<button class="btn" disabled>Obsolete</button>'
           }
         </td>
       `;
@@ -1650,8 +1767,7 @@ Import:
     const currentId = (BOOT.config.currentApprovedFormFileId || '').trim();
     const optionForForm = (f) => {
       const status = String(f.status || '').toUpperCase() || 'UNSET';
-      const name = f.fileName ? ` • ${f.fileName}` : '';
-      return `Rev ${f.mbomRev} • ${status}${name}`;
+      return `Rev ${f.mbomRev} • ${status}`;
     };
 
     const fillSelect = (selectEl, includeCurrent) => {
@@ -1721,10 +1837,56 @@ Import:
     meta.textContent = `Selected: Rev ${form.mbomRev} • ${form.status || 'UNSET'}${form.fileName ? ` • ${form.fileName}` : ''}`;
   }
 
+  function getAgileRowsForDisplay_(){
+    if (agileHistoryEnabled) return BOOT.dashboard.agileAll || [];
+    return BOOT.dashboard.agileLatest || [];
+  }
+
+  function updateAgileFilterOptions_(rows){
+    const fill = (id, values, label) => {
+      const select = $(id);
+      if (!select) return;
+      const current = select.value;
+      select.innerHTML = `<option value="">${label}</option>` + values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+      if (current) select.value = current;
+    };
+
+    const sites = Array.from(new Set((rows || []).map(r => String(r.site || '').trim()).filter(Boolean))).sort();
+    const parts = Array.from(new Set((rows || []).map(r => String(r.partNorm || '').trim()).filter(Boolean))).sort();
+    const busways = Array.from(new Set((rows || []).map(r => String(r.buswaySupplier || '').trim()).filter(Boolean))).sort();
+    const approvals = Array.from(new Set((rows || []).map(r => String(r.approvalStatus || '').trim()).filter(Boolean))).sort();
+
+    fill('agileFilterSite', sites, 'All Sites');
+    fill('agileFilterPart', parts, 'All Parts');
+    fill('agileFilterBusway', busways, 'All Busway');
+    fill('agileFilterApproval', approvals, 'All Approvals');
+  }
+
+  function applyAgileFilters_(rows){
+    const site = String($('agileFilterSite').value || '').trim();
+    const part = String($('agileFilterPart').value || '').trim();
+    const tab = String($('agileFilterTab').value || '').trim().toLowerCase();
+    const busway = String($('agileFilterBusway').value || '').trim();
+    const approval = String($('agileFilterApproval').value || '').trim();
+
+    return (rows || []).filter(r => {
+      if (site && String(r.site || '').trim() !== site) return false;
+      if (part && String(r.partNorm || '').trim() !== part) return false;
+      if (busway && String(r.buswaySupplier || '').trim() !== busway) return false;
+      if (approval && String(r.approvalStatus || '').trim() !== approval) return false;
+      if (tab) {
+        const hay = String(r.tabName || '').toLowerCase();
+        if (!hay.includes(tab)) return false;
+      }
+      return true;
+    });
+  }
+
   function renderAgileLatest(rows){
     const tbody = $('tblAgileLatest').querySelector('tbody');
     tbody.innerHTML = '';
     $('agileHint').textContent = 'Approve latest Agile tabs to enable controlled RELEASED creation.';
+    $('btnAgileToggleHistory').textContent = agileHistoryEnabled ? 'Show latest only' : 'Show history';
 
     if (!rows || !rows.length) {
       setStateWithBody('state-agile', 'body-agile', 'empty', { title: 'No Agile rows found', body: 'Latest Agile tabs will appear after indexing.' });
@@ -1733,7 +1895,14 @@ Import:
     }
     setStateWithBody('state-agile', 'body-agile', 'ready');
 
-    rows.forEach(r => {
+    updateAgileFilterOptions_(rows);
+    const filteredRows = applyAgileFilters_(rows);
+    if (!filteredRows.length) {
+      setTableEmpty(tbody, 8, 'No Agile BOM data matches the filters.');
+      return;
+    }
+
+    filteredRows.forEach(r => {
       const site = escapeHtml(r.site);
       const partNorm = escapeHtml(r.partNorm);
       const rev = escapeHtml(r.rev);
@@ -1799,14 +1968,12 @@ Import:
   }
 
   function renderApprovals(){
-    const pendingOnly = $('chkPendingOnly').checked;
-
     // Agile approvals
     const tbodyA = $('tblPendingAgile').querySelector('tbody');
     tbodyA.innerHTML = '';
 
     const agile = BOOT.dashboard.agileLatest || [];
-    const agileRows = pendingOnly ? agile.filter(x => String(x.approvalStatus).toUpperCase() !== 'APPROVED') : agile;
+    const agileRows = agile.filter(x => String(x.approvalStatus).toUpperCase() !== 'APPROVED');
 
     agileRows.forEach(r => {
       const site = escapeHtml(r.site);
@@ -1849,9 +2016,7 @@ Import:
     const tbodyF = $('tblPendingForms').querySelector('tbody');
     tbodyF.innerHTML = '';
 
-    const forms = pendingOnly
-      ? (BOOT.forms || []).filter(f => String(f.status||'').toUpperCase() !== 'APPROVED')
-      : (BOOT.forms || []);
+    const forms = (BOOT.forms || []).filter(f => String(f.status||'').toUpperCase() === 'DRAFT');
 
     forms.sort((a,b)=>Number(b.mbomRev||0)-Number(a.mbomRev||0));
     forms.forEach(f => {
@@ -2122,7 +2287,7 @@ Import:
     rows.forEach(r => {
       const opt = document.createElement('option');
       opt.value = r.tabName;
-      opt.textContent = `Rev ${r.rev} • ${r.downloadDate} • ${r.tabName} • ${r.approvalStatus}`;
+      opt.textContent = `${r.tabName} • Rev ${r.rev} • ${r.approvalStatus}`;
       if (preferredTab && r.tabName === preferredTab) opt.selected = true;
       selectEl.appendChild(opt);
     });
@@ -2318,6 +2483,7 @@ Import:
       if (s === 'projects') setStateWithBody('state-edit', 'body-edit', 'loading', { title: 'Loading project settings', body: 'Preparing editable project settings.' });
       if (s === 'forms') setStateWithBody('state-forms', 'body-forms', 'loading', { title: 'Loading forms', body: 'Fetching form revisions.' });
       if (s === 'agileLatest') setStateWithBody('state-agile', 'body-agile', 'loading', { title: 'Loading Agile BOM', body: 'Fetching latest Agile tabs.' });
+      if (s === 'agileAll') setStateWithBody('state-agile', 'body-agile', 'loading', { title: 'Loading Agile BOM', body: 'Fetching Agile history.' });
       if (s === 'approvals') setStateWithBody('state-approvals', 'body-approvals', 'loading', { title: 'Loading approvals', body: 'Fetching approval queues.' });
       if (s === 'jobs') setStateWithBody('state-jobs', 'body-jobs', 'loading', { title: 'Loading jobs', body: 'Fetching queue summary.' });
       if (s === 'config') setStateWithBody('state-settings', 'body-settings', 'loading', { title: 'Loading settings', body: 'Fetching configuration values.' });
@@ -2339,6 +2505,7 @@ Import:
         if (s === 'projects') setStateWithBody('state-edit', 'body-edit', 'error', { title: 'Unable to load project settings', body: formatErrorMessage(e) });
         if (s === 'forms') setStateWithBody('state-forms', 'body-forms', 'error', { title: 'Unable to load forms', body: formatErrorMessage(e) });
         if (s === 'agileLatest') setStateWithBody('state-agile', 'body-agile', 'error', { title: 'Unable to load Agile BOM', body: formatErrorMessage(e) });
+        if (s === 'agileAll') setStateWithBody('state-agile', 'body-agile', 'error', { title: 'Unable to load Agile BOM', body: formatErrorMessage(e) });
         if (s === 'approvals') setStateWithBody('state-approvals', 'body-approvals', 'error', { title: 'Unable to load approvals', body: formatErrorMessage(e) });
         if (s === 'jobs') setStateWithBody('state-jobs', 'body-jobs', 'error', { title: 'Unable to load jobs', body: formatErrorMessage(e) });
         if (s === 'config') setStateWithBody('state-settings', 'body-settings', 'error', { title: 'Unable to load settings', body: formatErrorMessage(e) });
@@ -2363,7 +2530,10 @@ Import:
       BOOT.releases = data.releases || [];
     }
     if (missing.includes('agileLatest')) {
-      renderAgileLatest(BOOT.dashboard.agileLatest || []);
+      renderAgileLatest(getAgileRowsForDisplay_());
+    }
+    if (missing.includes('agileAll')) {
+      renderAgileLatest(getAgileRowsForDisplay_());
     }
     if (missing.includes('projects')) {
       renderProjects(BOOT.dashboard.projects || []);
