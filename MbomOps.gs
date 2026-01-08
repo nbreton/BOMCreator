@@ -227,6 +227,50 @@ function mbom_createReleasedForProject_(params) {
   });
 }
 
+function mbom_obsoletePreviousForm_(params) {
+  const baseFormId = String(params.baseFormId || '').trim();
+  if (!baseFormId) return { ok: true, skipped: 'missing baseFormId' };
+
+  const fromFolderId = String(params.formsFolderId || '').trim();
+  const toFolderId = String(params.formsObsoleteId || '').trim();
+  if (!fromFolderId || !toFolderId) throw new Error('Missing Forms folder IDs for obsoleting');
+
+  try {
+    drive_moveFileToFolder_(baseFormId, fromFolderId, toFolderId);
+    files_setStatus_(baseFormId, 'OBSOLETE');
+    log_info_('Obsoleted previous Form revision', { fileId: baseFormId });
+    return { ok: true, moved: true };
+  } catch (e) {
+    log_warn_('Failed to obsolete previous Form revision', { fileId: baseFormId, error: e.message });
+    return { ok: false, error: e.message };
+  }
+}
+
+function mbom_obsoletePreviousReleased_(params) {
+  const projectKey = String(params.projectKey || '').trim();
+  if (!projectKey) return { ok: true, skipped: 'missing projectKey' };
+
+  const fromFolderId = String(params.releasedFolderId || '').trim();
+  const toFolderId = String(params.releasedObsoleteId || '').trim();
+  if (!fromFolderId || !toFolderId) throw new Error('Missing Released folder IDs for obsoleting');
+
+  const prev = files_getLatestBy_('RELEASED', r =>
+    (r.ProjectKey || '') === projectKey &&
+    String(r.Status || '').toUpperCase() !== 'OBSOLETE'
+  );
+  if (!prev || !prev.FileId) return { ok: true, skipped: 'no previous release' };
+
+  try {
+    drive_moveFileToFolder_(prev.FileId, fromFolderId, toFolderId);
+    files_setStatus_(prev.FileId, 'OBSOLETE');
+    log_info_('Obsoleted previous RELEASED mBOM', { projectKey, fileId: prev.FileId, mbomRev: prev.MbomRev });
+    return { ok: true, moved: true };
+  } catch (e) {
+    log_warn_('Failed to obsolete previous RELEASED mBOM', { projectKey, fileId: prev.FileId, error: e.message });
+    return { ok: false, error: e.message };
+  }
+}
+
 
 function mbom_setBuswayCodes_(ss, codes) {
   const clusterCode = String(codes.clusterCode || '').trim();
