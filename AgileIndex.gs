@@ -117,6 +117,7 @@ function agile_refreshIndex_() {
 
     outSh.getRange(1, 1, out.length, out[0].length).setValues(out);
     outSh.setFrozenRows(1);
+    agile_resetCache_();
 
     // Record refresh timestamp (for diagnostics)
     PropertiesService.getScriptProperties().setProperty('AGILE_INDEX_LAST_REFRESH_AT', new Date().toISOString());
@@ -188,6 +189,10 @@ function agile_projectKey_(site, partNorm) {
 
 function agile_isTrue_(v) {
   return v === true || String(v || '').trim().toUpperCase() === 'TRUE';
+}
+
+function agile_resetCache_() {
+  globalThis.__AGILE_INDEX_CACHE__ = null;
 }
 
 /**

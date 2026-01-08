@@ -17,7 +17,8 @@ function change_actions_config_() {
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
-  return { spreadsheetId, sheetNames };
+  const uniqueSheetNames = Array.from(new Set(sheetNames));
+  return { spreadsheetId, sheetNames: uniqueSheetNames };
 }
 
 function change_actions_normHeader_(s) {
@@ -42,6 +43,9 @@ function change_actions_list_() {
   const cfg = change_actions_config_();
   if (!cfg.spreadsheetId) {
     return { actions: [], sources: [], warning: 'Missing ECR_ACT_SOURCE_SPREADSHEET_ID configuration.' };
+  }
+  if (!cfg.sheetNames.length) {
+    return { actions: [], sources: [], warning: 'Missing ECR_ACT_SOURCE_SHEETS configuration.' };
   }
 
   const actions = [];

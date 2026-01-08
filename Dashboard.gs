@@ -5,16 +5,22 @@ function dashboard_build_(opts) {
   const includeReleasesList = opts.includeReleasesList !== false;
   const includeAgileLatest = opts.includeAgileLatest !== false;
   const includePending = opts.includePending !== false;
+  const includeAgileAll = opts.includeAgileAll === true;
   const includeLatestApprovedForm = (opts.includeLatestApprovedForm !== undefined)
     ? opts.includeLatestApprovedForm
     : true;
 
   const indexState = agile_indexState_();
 
-  const needAgileRows = includeProjects || includeAgileLatest || includePending;
+  const needAgileRows = includeProjects || includeAgileLatest || includePending || includeAgileAll;
   const agileRows = needAgileRows ? agile_readIndex_() : [];
-  const rawProjects = includeProjects ? agile_getProjectsFromRows_(agileRows) : [];
+  const rawProjects = includeProjects
+    ? (typeof agile_getProjectsFromRows_ === 'function'
+      ? agile_getProjectsFromRows_(agileRows)
+      : dashboard_getProjectsFromRows_(agileRows))
+    : [];
   const agileLatest = (includeAgileLatest || includePending) ? agile_listLatestFromRows_(agileRows) : [];
+  const agileAll = includeAgileAll ? dashboard_listAgileAllFromRows_(agileRows) : [];
 
   const needFiles = includeProjects || includeFormsList || includeReleasesList || includeLatestApprovedForm || includePending;
   const filesAll = needFiles ? files_listAll_() : [];
@@ -40,6 +46,9 @@ function dashboard_build_(opts) {
       mdaBuswaySupplier: effective.mdaBuswaySupplier || p.mdaBuswaySupplier || ''
     };
   }) : [];
+  const agileTabUrls = includeProjects ? dashboard_buildAgileTabUrlMap_(
+    projects.flatMap(p => [p.clusterTab, p.mdaTab])
+  ) : {};
 
   const latestReleaseByProject = {};
   if (includeProjects) {
@@ -56,6 +65,8 @@ function dashboard_build_(opts) {
     const rel = latestReleaseByProject[p.projectKey] || null;
     return {
       ...p,
+      clusterTabUrl: agileTabUrls[p.clusterTab] || '',
+      mdaTabUrl: agileTabUrls[p.mdaTab] || '',
       hasNewAgileRevision: dashboard_hasNewAgileRevision_(p, rel),
       latestReleased: rel ? {
         mbomRev: rel.MbomRev,
@@ -87,10 +98,85 @@ function dashboard_build_(opts) {
     forms: includeFormsList ? formsAll : [],
     releases: includeReleasesList ? releasesAll : [],
     agileLatest,
+    agileAll,
     latestApprovedForm,
     pendingAgile,
     pendingForms
   };
+}
+
+function dashboard_listAgileAllFromRows_(rows) {
+  return (rows || []).map(r => ({
+    site: String(r.Site || ''),
+    partNorm: String(r.PartNorm || ''),
+    rev: r.Rev,
+    tabName: String(r.TabName || ''),
+    downloadDate: String(r.DownloadDate || ''),
+    eco: String(r.ECO || ''),
+    approvalStatus: String(r.ApprovalStatus || 'PENDING'),
+    buswaySupplier: String(r.BuswaySupplier || ''),
+    isLatest: agile_isTrue_(r.IsLatest)
+  }));
+}
+
+function dashboard_getProjectsFromRows_(rows) {
+  rows = rows || [];
+  const latestZoneRows = rows.filter(r =>
+    agile_isTrue_(r.IsLatest) &&
+    /^Zone\s+\d+$/i.test(String(r.PartNorm || ''))
+  );
+
+  const projects = {};
+  for (const r of latestZoneRows) {
+    const projectKey = String(r.ProjectKey || '').trim();
+    if (!projectKey) continue;
+
+    const site = String(r.Site || '').trim();
+    const zone = String(r.PartNorm || '').replace(/^Zone\s+/i, '').trim();
+    const mda = (typeof agile_getLatestTab_ === 'function') ? agile_getLatestTab_(site, 'MDA') : null;
+
+    projects[projectKey] = {
+      projectKey,
+      site,
+      zone,
+
+      clusterTab: String(r.TabName || ''),
+      clusterRev: r.Rev,
+      clusterEco: String(r.ECO || ''),
+      clusterDate: String(r.DownloadDate || ''),
+      clusterApproval: String(r.ApprovalStatus || 'PENDING'),
+      clusterBuswaySupplier: String(r.BuswaySupplier || ''),
+
+      mdaTab: mda ? String(mda.TabName || '') : '',
+      mdaRev: mda ? mda.Rev : '',
+      mdaEco: mda ? String(mda.ECO || '') : '',
+      mdaDate: mda ? String(mda.DownloadDate || '') : '',
+      mdaApproval: mda ? String(mda.ApprovalStatus || 'PENDING') : 'PENDING',
+      mdaBuswaySupplier: mda ? String(mda.BuswaySupplier || '') : ''
+    };
+  }
+
+  return Object.values(projects).sort((a, b) => a.projectKey.localeCompare(b.projectKey));
+}
+
+function dashboard_buildAgileTabUrlMap_(tabNames) {
+  const names = Array.from(new Set((tabNames || []).map(n => String(n || '').trim()).filter(Boolean)));
+  if (!names.length) return {};
+
+  const sourceId = cfg_get_('DOWNLOAD_LIST_SS_ID');
+  if (!sourceId) return {};
+
+  const ss = SpreadsheetApp.openById(sourceId);
+  const lookup = new Set(names);
+  const out = {};
+
+  ss.getSheets().forEach(sh => {
+    const name = sh.getName();
+    if (!lookup.has(name)) return;
+    out[name] = `https://docs.google.com/spreadsheets/d/${sourceId}/edit#gid=${sh.getSheetId()}`;
+  });
+
+  return out;
 }
 
 function dashboard_hasNewAgileRevision_(project, release) {

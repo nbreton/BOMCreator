@@ -209,6 +209,41 @@
   }
 
   .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .row-split{ align-items:flex-start; gap:16px; }
+  .tableFilters{
+    align-items:flex-end;
+    gap:12px;
+    margin-bottom:6px;
+  }
+  .tableFilters > div{ min-width:140px; }
+  .tableFilters input, .tableFilters select{ min-width:140px; }
+  .filterActions{
+    display:flex;
+    gap:8px;
+    align-items:flex-end;
+    margin-top:16px;
+  }
+  .btnGroup{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 8px;
+    border:1px dashed var(--border);
+    border-radius:12px;
+    background:#fff;
+  }
+  .btnGroup.actions{
+    border-color:rgba(37,99,235,.25);
+    background:rgba(37,99,235,.04);
+  }
+  .btnGroupLabel{
+    font-size:11px;
+    font-weight:700;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    margin-right:4px;
+  }
   .actionsFilters{ margin-top:8px; }
   .actionsFilters select{ min-width:150px; }
   .actionsFilters input{ flex:1 1 220px; }
@@ -225,7 +260,28 @@
   .btn.primary{ border-color:rgba(37,99,235,.35); background:rgba(37,99,235,.10); color:var(--blue); }
   .btn.danger{ border-color:rgba(185,28,28,.35); background:rgba(185,28,28,.08); color:var(--red); }
   .btn.warn{ border-color:rgba(180,83,9,.35); background:rgba(180,83,9,.08); color:var(--amber); }
+  .btn.filter{ border-style:dashed; background:#fff; color:var(--txt); }
   .btn:disabled{ opacity:.55; cursor:not-allowed; }
+  .actionCell{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    align-items:center;
+  }
+  .scrollTable{
+    max-height:360px;
+    overflow:auto;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:4px;
+    background:#fff;
+  }
+  .scrollTable .table thead th{
+    position:sticky;
+    top:0;
+    background:#fff;
+    z-index:2;
+  }
 
   .card{
     background:var(--card);
@@ -272,6 +328,10 @@
   .table tr.project-alert{
     border-left:3px solid var(--red);
     background:rgba(185,28,28,.05);
+  }
+  .table tr.project-eligible{
+    border-left:3px solid var(--red);
+    background:rgba(185,28,28,.04);
   }
 
   .pill{
