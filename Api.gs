@@ -11,21 +11,30 @@ class ApiError extends Error {
 
 function api_handleRequest_(name, handler) {
   const startedMs = Date.now();
+  const requestId = api_requestId_();
+  const stackId = api_stackId_();
   try {
     const data = handler();
-    return api_response_(data, startedMs);
+    return api_response_(data, startedMs, requestId, stackId);
   } catch (e) {
-    const stackId = api_stackId_();
     const errorInfo = api_classifyError_(e);
 
     try {
       log_error_('API error', {
         name,
+        requestId,
         code: errorInfo.code,
         message: errorInfo.message,
         details: errorInfo.details,
         stackId,
         stack: e && e.stack ? e.stack : ''
+      });
+      logEvent('api_error', {
+        name,
+        requestId,
+        stackId,
+        code: errorInfo.code,
+        message: errorInfo.message
       });
     } catch (_) {}
 
@@ -33,35 +42,41 @@ function api_handleRequest_(name, handler) {
       errorInfo.code,
       errorInfo.message,
       errorInfo.details,
+      requestId,
       stackId,
       startedMs
     );
   }
 }
 
-function api_response_(data, startedMs) {
+function api_response_(data, startedMs, requestId, stackId) {
   return api_safeReturn_({
     ok: true,
     data: (data === undefined ? null : data),
     meta: {
       ms: Date.now() - startedMs,
-      version: API_VERSION
+      version: API_VERSION,
+      requestId: requestId || '',
+      stackId: stackId || ''
     }
   }, 'Response serialization failed');
 }
 
-function api_errorResponse_(code, message, details, stackId, startedMs) {
+function api_errorResponse_(code, message, details, requestId, stackId, startedMs) {
   return api_safeReturn_({
     ok: false,
     error: {
       code: code || 'INTERNAL',
       message: message || 'Request failed',
       details: details || null,
+      requestId: requestId || '',
       stackId: stackId || ''
     },
     meta: {
       ms: Date.now() - startedMs,
-      version: API_VERSION
+      version: API_VERSION,
+      requestId: requestId || '',
+      stackId: stackId || ''
     }
   }, 'Error response serialization failed');
 }
@@ -87,6 +102,14 @@ function api_safeReturn_(payload, fallbackMessage) {
 }
 
 function api_stackId_() {
+  try {
+    return Utilities.getUuid();
+  } catch (e) {
+    return String(Date.now());
+  }
+}
+
+function api_requestId_() {
   try {
     return Utilities.getUuid();
   } catch (e) {

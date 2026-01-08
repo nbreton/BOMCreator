@@ -1,4 +1,9 @@
 const LOG_SHEET_NAME_DEFAULT = 'LOGS';
+const LOG_SHEET_MAX_ROWS_DEFAULT = 1000;
+
+function logEvent(type, payload) {
+  log_write_('EVENT', type, payload);
+}
 
 function log_info_(msg, data) { log_write_('INFO', msg, data); }
 function log_warn_(msg, data) { log_write_('WARN', msg, data); }
@@ -36,6 +41,7 @@ function log_write_(level, msg, data) {
       entry.message,
       entry.data ? JSON.stringify(entry.data) : ''
     ]);
+    log_trimSheet_(sh);
   } catch (_) {
     // Avoid throwing from logger
   }
@@ -55,6 +61,30 @@ function log_sheetName_() {
     return String(cfg.LOGS_SHEET_NAME || LOG_SHEET_NAME_DEFAULT).trim() || LOG_SHEET_NAME_DEFAULT;
   } catch (e) {
     return LOG_SHEET_NAME_DEFAULT;
+  }
+}
+
+function log_sheetMaxRows_() {
+  try {
+    const cfg = cfg_getAll_();
+    const raw = cfg.LOGS_SHEET_MAX_ROWS;
+    const n = Number(raw);
+    if (isFinite(n) && n >= 2) return Math.floor(n);
+  } catch (e) {}
+  return LOG_SHEET_MAX_ROWS_DEFAULT;
+}
+
+function log_trimSheet_(sh) {
+  const maxRows = log_sheetMaxRows_();
+  if (!maxRows) return;
+  const lastRow = sh.getLastRow();
+  if (lastRow <= maxRows) return;
+  const deleteCount = lastRow - maxRows;
+  if (deleteCount <= 0) return;
+  try {
+    sh.deleteRows(2, deleteCount);
+  } catch (_) {
+    // Avoid throwing from logger
   }
 }
 

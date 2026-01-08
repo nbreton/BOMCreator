@@ -22,6 +22,7 @@
       <div class="tab" data-page="projectData">Project Data</div>
       <div class="tab" data-page="notifications">Notifications</div>
       <div class="tab" data-page="settings">Settings</div>
+      <div class="tab" data-page="diagnostics">Diagnostics</div>
       <div class="tab" data-page="import">Import</div>
       <div class="tab" data-page="readme">README</div>
     </div>
@@ -418,6 +419,41 @@
       </div>
     </section>
 
+    <!-- DIAGNOSTICS -->
+    <section class="page" id="page-diagnostics">
+      <div class="card">
+        <h3>Diagnostics</h3>
+        <div class="banner">
+          Quick visibility into the latest request IDs and recent client-side errors.
+        </div>
+
+        <div class="grid2" style="margin-top:10px;">
+          <div>
+            <label>App version</label>
+            <div class="mono" id="diagVersion">—</div>
+          </div>
+          <div>
+            <label>Last requestId</label>
+            <div class="mono" id="diagRequestId">—</div>
+          </div>
+        </div>
+
+        <h4 style="margin-top:16px;">Recent errors</h4>
+        <table class="table" id="tblDiagErrors">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Context</th>
+              <th>Message</th>
+              <th>Request</th>
+              <th>Stack</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- IMPORT -->
     <section class="page" id="page-import">
       <div class="card">
@@ -481,6 +517,12 @@ Import:
   let cacheMdaRows = [];
   let jobsPollTimer = null;
   let lastPollErrorAt = 0;
+  const DIAG = {
+    version: '',
+    lastRequestId: '',
+    recentErrors: []
+  };
+  const DIAG_MAX_ERRORS = 8;
 
   function $(id){ return document.getElementById(id); }
 
@@ -518,28 +560,79 @@ Import:
           code: 'BAD_RESPONSE',
           message: 'Server returned an invalid response.',
           details: res || null,
-          stackId: ''
+          stackId: '',
+          requestId: ''
         }
       };
     }
     if (res.ok === false && !res.error) {
       return {
         ok: false,
-        error: { code: 'UNKNOWN', message: 'Server returned an error.', details: res || null, stackId: '' }
+        error: { code: 'UNKNOWN', message: 'Server returned an error.', details: res || null, stackId: '', requestId: '' }
       };
     }
     return res;
+  }
+
+  function updateDiagnosticsFromResponse(res) {
+    const meta = res && res.meta ? res.meta : {};
+    if (meta.version) DIAG.version = meta.version;
+    if (meta.requestId) DIAG.lastRequestId = meta.requestId;
+    renderDiagnostics();
+  }
+
+  function recordError(context, err) {
+    const entry = {
+      ts: new Date().toISOString(),
+      context: context || '',
+      message: err && err.message ? err.message : String(err || 'Unknown error'),
+      requestId: err && err.requestId ? err.requestId : (err && err.meta && err.meta.requestId ? err.meta.requestId : ''),
+      stackId: err && err.stackId ? err.stackId : ''
+    };
+    DIAG.recentErrors.unshift(entry);
+    if (DIAG.recentErrors.length > DIAG_MAX_ERRORS) {
+      DIAG.recentErrors = DIAG.recentErrors.slice(0, DIAG_MAX_ERRORS);
+    }
+    renderDiagnostics();
+  }
+
+  function renderDiagnostics() {
+    if ($('diagVersion')) $('diagVersion').textContent = DIAG.version || '—';
+    if ($('diagRequestId')) $('diagRequestId').textContent = DIAG.lastRequestId || '—';
+
+    const tbody = $('tblDiagErrors') ? $('tblDiagErrors').querySelector('tbody') : null;
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!DIAG.recentErrors.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td class="mono" colspan="5">No recent errors.</td>';
+      tbody.appendChild(tr);
+      return;
+    }
+    DIAG.recentErrors.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(fmtDate(e.ts))}</td>
+        <td>${escapeHtml(e.context || '')}</td>
+        <td>${escapeHtml(e.message || '')}</td>
+        <td class="mono">${escapeHtml(e.requestId || '—')}</td>
+        <td class="mono">${escapeHtml(e.stackId || '—')}</td>
+      `;
+      tbody.appendChild(tr);
+    });
   }
 
   function callApi(fn, payload) {
     return new Promise((resolve, reject) => {
       const runner = google.script.run.withSuccessHandler((res) => {
         const normalized = normalizeResponse(res);
+        updateDiagnosticsFromResponse(normalized);
         if (!normalized.ok) {
           const err = new Error(normalized.error?.message || 'Request failed.');
           err.code = normalized.error?.code || 'ERROR';
           err.details = normalized.error?.details || null;
-          err.stackId = normalized.error?.stackId || '';
+          err.stackId = normalized.error?.stackId || normalized.meta?.stackId || '';
+          err.requestId = normalized.error?.requestId || normalized.meta?.requestId || '';
           reject(err);
           return;
         }
@@ -559,13 +652,15 @@ Import:
 
   function formatErrorMessage(err){
     const base = err && err.message ? err.message : String(err);
-    const stackId = err && err.stackId ? ` (ref ${err.stackId})` : '';
-    return `${base}${stackId}`;
+    const requestId = err && err.requestId ? ` (req ${err.requestId})` : '';
+    const stackId = err && err.stackId ? ` (stack ${err.stackId})` : '';
+    return `${base}${requestId}${stackId}`;
   }
 
   function notifyError(context, err){
     const msg = context ? `${context}: ${formatErrorMessage(err)}` : formatErrorMessage(err);
     setStatus(msg, 'error');
+    recordError(context, err);
     console.error('[mBOM] Error', context, err);
   }
 
@@ -651,6 +746,7 @@ Import:
       if (page === 'monitoring') await loadSections(['jobs'], 'Loading jobs…');
       if (page === 'settings') await loadSections(['config'], 'Loading settings…');
       if (page === 'notifications') await loadSections(['notifications'], 'Loading notifications…');
+      if (page === 'diagnostics') renderDiagnostics();
     });
   });
 
@@ -1579,6 +1675,7 @@ Import:
     if (typeof renderJobsTop === 'function') renderJobsTop();
 
     await loadSections(['projects', 'jobs'], 'Loading data…');
+    renderDiagnostics();
 
   } catch (e) {
     setBusy(false, '');
