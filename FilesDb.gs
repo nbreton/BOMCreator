@@ -16,6 +16,15 @@ function files_ensure_() {
 }
 
 function files_list_(type) {
+  const rows = files_listAll_();
+  if (!type) return rows;
+  return rows.filter(r => r.Type === type);
+}
+
+function files_listAll_() {
+  if (globalThis.__FILES_CACHE__ && Array.isArray(globalThis.__FILES_CACHE__)) {
+    return globalThis.__FILES_CACHE__;
+  }
   const sh = files_ensure_();
   const values = sh.getDataRange().getValues();
   const headers = values[0];
@@ -24,10 +33,14 @@ function files_list_(type) {
     const row = values[i];
     const obj = {};
     headers.forEach((h, idx) => obj[h] = row[idx]);
-    if (type && obj.Type !== type) continue;
     out.push(obj);
   }
+  globalThis.__FILES_CACHE__ = out;
   return out;
+}
+
+function files_resetCache_() {
+  globalThis.__FILES_CACHE__ = null;
 }
 
 function files_getByFileId_(fileId) {
@@ -56,6 +69,7 @@ function files_append_(rec) {
     rec.status || '',
     rec.notes || ''
   ]);
+  files_resetCache_();
 }
 
 /**
@@ -99,9 +113,11 @@ function files_upsertByFileId_(rec) {
 
   if (rowIndex === -1) {
     sh.appendRow(row);
+    files_resetCache_();
     return { ok: true, inserted: true };
   } else {
     sh.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+    files_resetCache_();
     return { ok: true, inserted: false };
   }
 }
@@ -130,6 +146,7 @@ function files_setStatus_(fileId, status) {
   for (let i = 1; i < values.length; i++) {
     if (String(values[i][idxFileId]).trim() === String(fileId).trim()) {
       sh.getRange(i + 1, idxStatus + 1).setValue(String(status || '').trim());
+      files_resetCache_();
       return true;
     }
   }

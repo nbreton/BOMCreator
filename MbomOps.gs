@@ -1,7 +1,7 @@
 //MbomOps.gs
 function mbom_withCopyLock_(label, fn) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  lock.waitLock(120000);
   try {
     return fn();
   } finally {

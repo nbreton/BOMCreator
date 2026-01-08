@@ -1,6 +1,6 @@
 const JOB_PREFIX = 'JOB_';
 const JOB_MAX_KEEP = 200;
-const JOB_STALE_MINUTES = 15;
+const JOB_STALE_MINUTES = 30;
 
 /**
  * Create a new job and schedule execution.
@@ -56,12 +56,31 @@ function jobs_delete_(jobId) {
   return { ok: true };
 }
 
+function jobs_remove_(jobId) {
+  const job = jobs_get_(jobId);
+  if (!job) return { ok: false, error: 'Job not found' };
+  if (job.status === 'RUNNING') {
+    return { ok: false, error: 'Cannot remove a running job. Retry later.' };
+  }
+  jobs_delete_(jobId);
+  return { ok: true };
+}
+
+function jobs_restartRunner_() {
+  jobs_cleanupTriggers_();
+  jobs_schedule_();
+  return { ok: true };
+}
+
 // -----------------------
 // Runner + scheduler
 // -----------------------
 function jobs_run_() {
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(1000)) return;
+  if (!lock.tryLock(1000)) {
+    jobs_schedule_();
+    return;
+  }
 
   try {
     jobs_markStale_();
