@@ -71,11 +71,11 @@
             <div class="state" id="state-projects"></div>
             <div class="cardBody" id="body-projects">
               <div class="row row-split">
-                <div class="btnGroup">
-                  <span class="btnGroupLabel">Filters</span>
-                  <button class="btn filter" id="btnSelectEligible">Select eligible (approved)</button>
-                  <button class="btn filter" id="btnClearSelection">Clear selection</button>
-                </div>
+              <div class="btnGroup filters">
+                <span class="btnGroupLabel">Filters</span>
+                <button class="btn filter" id="btnSelectEligible">Select eligible (approved)</button>
+                <button class="btn filter" id="btnClearSelection">Clear selection</button>
+              </div>
                 <div class="btnGroup actions">
                   <span class="btnGroupLabel">Actions</span>
                   <button class="btn primary" id="btnScheduleSelected">Schedule RELEASED for selected</button>
@@ -104,19 +104,18 @@
           <!-- Project edits -->
           <div class="card" id="dash-edit" style="display:none;">
             <div class="cardHeader">
-              <h3>Project Edit (ClusterGroup, MDA, Busway Supplier)</h3>
+              <h3>Project Edit (ClusterGroup, Busway Supplier)</h3>
             </div>
             <div class="state" id="state-edit"></div>
             <div class="cardBody" id="body-edit">
               <div class="banner">
-                Update project-level overrides for ClusterGroup, MDA requirement, and Busway supplier in one place.
+                Update project-level overrides for ClusterGroup and Busway supplier in one place.
               </div>
               <table class="table" id="tblProjectEdit">
                 <thead>
                   <tr>
                     <th>Project</th>
                     <th>ClusterGroup</th>
-                    <th>MDA Required</th>
                     <th>Cluster Busway Supplier</th>
                     <th>MDA Busway Supplier</th>
                     <th>Action</th>
@@ -163,32 +162,6 @@
             </div>
             <div class="state" id="state-agile"></div>
             <div class="cardBody" id="body-agile">
-              <div class="row tableFilters">
-                <div>
-                  <label>Site</label>
-                  <select id="agileFilterSite"></select>
-                </div>
-                <div>
-                  <label>Part</label>
-                  <select id="agileFilterPart"></select>
-                </div>
-                <div>
-                  <label>Tab</label>
-                  <input id="agileFilterTab" placeholder="Search tab">
-                </div>
-                <div>
-                  <label>Busway Supplier</label>
-                  <select id="agileFilterBusway"></select>
-                </div>
-                <div>
-                  <label>Approval</label>
-                  <select id="agileFilterApproval"></select>
-                </div>
-                <div class="filterActions">
-                  <button class="btn" id="btnAgileClearFilters">Clear filters</button>
-                  <button class="btn" id="btnAgileToggleHistory">Show history</button>
-                </div>
-              </div>
               <table class="table" id="tblAgileLatest">
                 <thead>
                   <tr>
@@ -200,6 +173,19 @@
                     <th>Busway Supplier</th>
                     <th>Approval</th>
                     <th>Action</th>
+                  </tr>
+                  <tr class="filterRow">
+                    <th><select id="agileFilterSite"></select></th>
+                    <th><select id="agileFilterPart"></select></th>
+                    <th></th>
+                    <th></th>
+                    <th><input id="agileFilterTab" placeholder="Search tab"></th>
+                    <th><select id="agileFilterBusway"></select></th>
+                    <th><select id="agileFilterApproval"></select></th>
+                    <th class="filterActions">
+                      <button class="btn" id="btnAgileClearFilters">Clear filters</button>
+                      <button class="btn" id="btnAgileToggleHistory">Show history</button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -333,7 +319,7 @@
                     </select>
                     <button class="btn" id="btnClearActionFilters">Clear</button>
                   </div>
-                  <div class="scrollTable">
+                  <div class="scrollTable actionsTable">
                     <table class="table" id="tblActions" style="margin-top:10px;">
                       <thead>
                         <tr>
@@ -550,7 +536,6 @@
 
               <div class="row">
                 <button class="btn" id="btnRefreshFiles">Refresh Files Index (Drive)</button>
-                <button class="btn" id="btnReloadAll">Reload</button>
               </div>
 
               <table class="table" id="tblConfig">
@@ -989,8 +974,10 @@ Import:
   function formatAgileTabName(tabName){
     const raw = String(tabName || '').trim();
     if (!raw) return '';
-    const firstToken = raw.split(/\s+/)[0];
-    return firstToken || raw;
+    const stripped = raw.replace(/\s+-\s+.*$/, '').replace(/\s+.*$/, '');
+    const match = stripped.match(/^([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)/);
+    if (match && match[1]) return match[1];
+    return stripped || raw;
   }
 
   function agileTabLink(tabName, tabUrl){
@@ -1084,7 +1071,6 @@ Import:
     }
   });
 
-  $('btnReloadAll').addEventListener('click', bootstrap);
 
   $('formBaseSelect').addEventListener('change', updateFormBaseMeta);
   $('relFormSelect').addEventListener('change', async () => {
@@ -1574,12 +1560,10 @@ Import:
       const relStatus = escapeHtml(rel && rel.status ? rel.status : '');
       const relCell = rel ? `${fileLink(rel.url, `Rev ${rel.mbomRev}`)}<div class="mono">${relStatus}</div>` : '<span class="mono">—</span>';
       const projectKey = escapeHtml(p.projectKey);
-      const site = escapeHtml(p.site);
       const clusterTab = agileTabLink(p.clusterTab, p.clusterTabUrl);
       const mdaTab = agileTabLink(p.mdaTab, p.mdaTabUrl);
       const clusterRev = escapeHtml(p.clusterRev || '');
       const mdaRev = escapeHtml(p.mdaRev || '');
-      const clusterGroup = escapeHtml(p.clusterGroup || '');
 
       const tr = document.createElement('tr');
       if (eligible) tr.classList.add('project-eligible');
@@ -1588,7 +1572,6 @@ Import:
         <td><input type="checkbox" data-projchk="${projectKey}"></td>
         <td>
           <span class="pill ok">${projectKey}</span>
-          <div class="mono">Site: ${site || '—'} • ClusterGroup: ${clusterGroup || '—'}</div>
         </td>
         <td class="mono">${clusterRev ? `Rev ${clusterRev} • ${clusterTab}<br>${pill(p.clusterApproval)}` : '<span class="mono">—</span>'}</td>
         <td class="mono">${p.includeMda ? (mdaRev ? `Rev ${mdaRev} • ${mdaTab}<br>${pill(p.mdaApproval)}` : '<span class="mono">—</span>') : '<span class="mono">—</span>'}</td>
@@ -1605,7 +1588,7 @@ Import:
 
     if (!projects || !projects.length) {
       setStateWithBody('state-edit', 'body-edit', 'empty', { title: 'No projects loaded', body: 'Projects will appear once the dashboard data is synced.' });
-      setTableEmpty(tbody, 6, 'No projects found.');
+      setTableEmpty(tbody, 5, 'No projects found.');
       return;
     }
     setStateWithBody('state-edit', 'body-edit', 'ready');
@@ -1613,7 +1596,6 @@ Import:
     projects.forEach(p => {
       const projectKey = escapeHtml(p.projectKey);
       const clusterGroup = Number(p.clusterGroup || 1);
-      const includeOverride = String(p.includeMdaOverride || '');
       const clusterBuswaySupplier = escapeHtml(p.clusterBuswaySupplier || '');
       const mdaBuswaySupplier = escapeHtml(p.mdaBuswaySupplier || '');
 
@@ -1623,15 +1605,6 @@ Import:
         <td>
           <select data-act="clusterGroup" data-project="${projectKey}">
             ${[1,2,3,4,5,6,7,8,9].map(n => `<option value="${n}" ${clusterGroup===n?'selected':''}>${n}</option>`).join('')}
-          </select>
-        </td>
-        <td>
-          <select data-act="includeMda" data-project="${projectKey}">
-            ${[
-              { v: '', label: 'Auto (based on ClusterGroup)' },
-              { v: 'TRUE', label: 'YES' },
-              { v: 'FALSE', label: 'NO' }
-            ].map(opt => `<option value="${opt.v}" ${includeOverride===opt.v?'selected':''}>${opt.label}</option>`).join('')}
           </select>
         </td>
         <td><input data-act="clusterBuswaySupplier" data-project="${projectKey}" value="${clusterBuswaySupplier}" placeholder="e.g., EAE, EI, Mardix"></td>
@@ -1647,13 +1620,11 @@ Import:
           const projectKey = btn.dataset.project;
           const row = btn.closest('tr');
           const clusterGroup = row.querySelector('select[data-act="clusterGroup"]').value;
-          const includeMdaOverride = row.querySelector('select[data-act="includeMda"]').value;
           const clusterBuswaySupplier = row.querySelector('input[data-act="clusterBuswaySupplier"]').value;
           const mdaBuswaySupplier = row.querySelector('input[data-act="mdaBuswaySupplier"]').value;
           await run('Updating project settings…', 'api_updateProjectSettings', {
             projectKey,
             clusterGroup: Number(clusterGroup),
-            includeMdaOverride,
             clusterBuswaySupplier,
             mdaBuswaySupplier
           });
@@ -2016,7 +1987,10 @@ Import:
     const tbodyF = $('tblPendingForms').querySelector('tbody');
     tbodyF.innerHTML = '';
 
-    const forms = (BOOT.forms || []).filter(f => String(f.status||'').toUpperCase() === 'DRAFT');
+    const sourceForms = (BOOT.dashboard && Array.isArray(BOOT.dashboard.pendingForms) && BOOT.dashboard.pendingForms.length)
+      ? BOOT.dashboard.pendingForms
+      : (BOOT.forms || []);
+    const forms = sourceForms.filter(f => String(f.status||'').trim().toUpperCase() === 'DRAFT');
 
     forms.sort((a,b)=>Number(b.mbomRev||0)-Number(a.mbomRev||0));
     forms.forEach(f => {
@@ -2287,7 +2261,7 @@ Import:
     rows.forEach(r => {
       const opt = document.createElement('option');
       opt.value = r.tabName;
-      opt.textContent = `${r.tabName} • Rev ${r.rev} • ${r.approvalStatus}`;
+      opt.textContent = `${formatAgileTabName(r.tabName)} • Rev ${r.rev} • ${r.approvalStatus}`;
       if (preferredTab && r.tabName === preferredTab) opt.selected = true;
       selectEl.appendChild(opt);
     });

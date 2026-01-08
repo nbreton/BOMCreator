@@ -232,9 +232,14 @@
     border-radius:12px;
     background:#fff;
   }
+  .btnGroup.filters{
+    background:#f8fafc;
+    border-color:rgba(148,163,184,.6);
+  }
   .btnGroup.actions{
-    border-color:rgba(37,99,235,.25);
-    background:rgba(37,99,235,.04);
+    border-color:rgba(37,99,235,.5);
+    background:rgba(37,99,235,.12);
+    box-shadow:0 1px 4px rgba(37,99,235,.15);
   }
   .btnGroupLabel{
     font-size:11px;
@@ -257,16 +262,20 @@
     font-size:12px;
     font-weight:600;
   }
-  .btn.primary{ border-color:rgba(37,99,235,.35); background:rgba(37,99,235,.10); color:var(--blue); }
+  .btn.primary{ border-color:rgba(37,99,235,.45); background:rgba(37,99,235,.18); color:var(--blue); }
   .btn.danger{ border-color:rgba(185,28,28,.35); background:rgba(185,28,28,.08); color:var(--red); }
   .btn.warn{ border-color:rgba(180,83,9,.35); background:rgba(180,83,9,.08); color:var(--amber); }
-  .btn.filter{ border-style:dashed; background:#fff; color:var(--txt); }
+  .btn.filter{ border-style:dashed; background:#f1f5f9; color:var(--txt); }
   .btn:disabled{ opacity:.55; cursor:not-allowed; }
   .actionCell{
     display:flex;
     flex-wrap:wrap;
     gap:6px;
     align-items:center;
+  }
+  .actionCell .btn{
+    min-width:96px;
+    text-align:center;
   }
   .scrollTable{
     max-height:360px;
@@ -275,6 +284,9 @@
     border-radius:10px;
     padding:4px;
     background:#fff;
+  }
+  .scrollTable.actionsTable{
+    max-height:320px;
   }
   .scrollTable .table thead th{
     position:sticky;
@@ -325,13 +337,32 @@
   }
   .table th{ color:var(--muted); font-weight:700; font-size:11px; }
   .table tbody tr:nth-child(even){ background:#fbfcfe; }
+  .table thead tr.filterRow th{
+    background:#f8fafc;
+    padding:6px;
+  }
+  .table thead tr.filterRow select,
+  .table thead tr.filterRow input{
+    width:100%;
+    min-width:0;
+    font-size:11px;
+    padding:6px 8px;
+  }
+  .table thead tr.filterRow .filterActions{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+  }
   .table tr.project-alert{
     border-left:3px solid var(--red);
     background:rgba(185,28,28,.05);
   }
-  .table tr.project-eligible{
+  .table tbody tr.project-eligible{
     border-left:3px solid var(--red);
-    background:rgba(185,28,28,.04);
+    background:rgba(185,28,28,.14);
+  }
+  .table tbody tr.project-eligible td:first-child{
+    box-shadow: inset 3px 0 0 var(--red);
   }
 
   .pill{
