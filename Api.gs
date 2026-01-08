@@ -319,7 +319,7 @@ function api_loadData(payload) {
 
       diag.limits = { limitForms, limitReleases, limitAgileLatest, jobsLimit };
 
-      const allowedSections = ['projects', 'forms', 'releases', 'agileLatest', 'jobs', 'config', 'notifications', 'approvals'];
+      const allowedSections = ['projects', 'forms', 'releases', 'agileLatest', 'agileAll', 'jobs', 'config', 'notifications', 'approvals'];
       const sections = Array.isArray(payload.sections) ? payload.sections.map(s => String(s || '').trim()).filter(Boolean) : [];
       const filteredSections = sections.filter(s => allowedSections.includes(s));
       const loadAll = filteredSections.length === 0;
@@ -327,6 +327,7 @@ function api_loadData(payload) {
       const wantForms = loadAll || filteredSections.includes('forms') || filteredSections.includes('approvals');
       const wantReleases = loadAll || filteredSections.includes('releases');
       const wantAgileLatest = loadAll || filteredSections.includes('agileLatest') || filteredSections.includes('approvals');
+      const wantAgileAll = loadAll || filteredSections.includes('agileAll');
       const wantJobs = loadAll || filteredSections.includes('jobs');
       const wantConfig = loadAll || filteredSections.includes('config');
       const wantNotifications = loadAll || filteredSections.includes('notifications');
@@ -337,6 +338,7 @@ function api_loadData(payload) {
         wantForms,
         wantReleases,
         wantAgileLatest,
+        wantAgileAll,
         wantJobs,
         wantConfig,
         wantNotifications
@@ -349,17 +351,18 @@ function api_loadData(payload) {
       const pendingAgileOffset = api_optionalNumber_(resume.pendingAgileOffset, 'resume.pendingAgileOffset', { integer: true, min: 0, default: 0 });
       const pendingFormsOffset = api_optionalNumber_(resume.pendingFormsOffset, 'resume.pendingFormsOffset', { integer: true, min: 0, default: 0 });
 
-      const needsDashboard = wantProjects || wantForms || wantReleases || wantAgileLatest;
+      const needsDashboard = wantProjects || wantForms || wantReleases || wantAgileLatest || wantAgileAll;
       const dash = needsDashboard
         ? step('dashboard_build_', () => dashboard_build_({
           includeProjects: wantProjects,
           includeFormsList: wantForms,
           includeReleasesList: wantReleases,
           includeAgileLatest: wantAgileLatest,
+          includeAgileAll: wantAgileAll,
           includePending: loadAll,
           includeLatestApprovedForm: wantProjects
         }))
-        : { indexState: agile_indexState_(), projects: [], forms: [], releases: [], agileLatest: [], pendingAgile: [], pendingForms: [], latestApprovedForm: null };
+        : { indexState: agile_indexState_(), projects: [], forms: [], releases: [], agileLatest: [], agileAll: [], pendingAgile: [], pendingForms: [], latestApprovedForm: null };
 
       const configList = wantConfig ? step('cfg_list_', () => cfg_list_()) : [];
 
@@ -371,6 +374,7 @@ function api_loadData(payload) {
 
       const agileLatestAll = wantAgileLatest ? (dash.agileLatest || []) : [];
       const agileLatest = wantAgileLatest ? agileLatestAll.slice(agileOffset, agileOffset + limitAgileLatest) : [];
+      const agileAll = wantAgileAll ? (dash.agileAll || []) : [];
 
       const pendingFormsAll = loadAll
         ? step('normalize_pendingForms', () => dashboard_normalizeFilesForUi_(dash.pendingForms || []))
@@ -410,6 +414,7 @@ function api_loadData(payload) {
         releasesSent: releases.length,
         agileLatestTotal: agileLatestAll.length,
         agileLatestSent: agileLatest.length,
+        agileAllTotal: agileAll.length,
         pendingFormsTotal: pendingFormsAll.length,
         pendingFormsSent: pendingForms.length,
         pendingAgileTotal: (dash.pendingAgile || []).length,
@@ -427,6 +432,7 @@ function api_loadData(payload) {
           forms: safeLen(forms),
           releases: safeLen(releases),
           agileLatest: safeLen(agileLatest),
+          agileAll: safeLen(agileAll),
           jobsRecent: safeLen(jobsRecent),
           notifications: safeLen({ notifStatus, notifSettings })
         };
@@ -451,6 +457,7 @@ function api_loadData(payload) {
           indexState: dash.indexState,
           projects: dash.projects || [],
           agileLatest,
+          agileAll,
           pendingAgile,
           pendingForms,
           latestApprovedForm: dash.latestApprovedForm ? {
