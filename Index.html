@@ -1,496 +1,448 @@
-###Index.html
 <!doctype html>
 <html>
 <head>
- <base target="_top">
- <?!= include('Style'); ?>
+  <base target="_top">
+  <?!= include('Style'); ?>
 </head>
 <body>
- <header class="topbar">
-   <div class="brand">
-     <img id="logoCompany" class="logo" alt="Company logo">
-     <div class="brandText">
-       <div class="title">VERDON mBOM App</div>
-       <div class="sub" id="sub">Loading…</div>
-     </div>
-   </div>
-
-
-   <div class="tabs">
-     <div class="tab active" data-page="dashboard">Dashboard</div>
-     <div class="tab" data-page="createForm">Create mBOM Form</div>
-     <div class="tab" data-page="createReleased">Create RELEASED</div>
-     <div class="tab" data-page="monitoring">Copy Monitoring</div>
-     <div class="tab" data-page="projectData">Project Data</div>
-     <div class="tab" data-page="notifications">Notifications</div>
-     <div class="tab" data-page="settings">Settings</div>
-     <div class="tab" data-page="import">Import</div>
-     <div class="tab" data-page="readme">README</div>
-   </div>
-
-
-   <div class="actions">
-     <div class="actionsRow">
-       <div class="opStatus" title="Current operation">
-         <div id="spinner" class="spinner"></div>
-         <div id="opLabel">Idle</div>
-       </div>
-       <button class="iconbtn" id="btnRefreshAgile" title="Refresh Agile Index">↻</button>
-       <button class="iconbtn" id="btnFullscreen" title="Fullscreen / Open Web App">⛶</button>
-       <img id="logoCustomer" class="logo" alt="Customer logo">
-     </div>
-     <div id="opLine" class="opLine"></div>
-   </div>
- </header>
-
-
- <div class="wrap">
-   <!-- DASHBOARD -->
-   <section class="page active" id="page-dashboard">
-     <div class="card">
-       <h3>Copy Jobs (progress)</h3>
-       <div id="jobsSummary" class="mono"></div>
-       <div id="jobsRunning" style="margin-top:10px;"></div>
-     </div>
-
-
-     <div class="subtabs">
-       <div class="subtab active" data-sub="projects">Projects</div>
-       <div class="subtab" data-sub="forms">Form Library</div>
-       <div class="subtab" data-sub="agile">Agile BOM</div>
-       <div class="subtab" data-sub="approvals">Approvals</div>
-     </div>
-
-
-     <!-- Projects -->
-     <div class="card" id="dash-projects">
-       <h3>Projects (select to batch create RELEASED)</h3>
-
-
-       <div class="row">
-         <button class="btn" id="btnSelectEligible">Select eligible (approved)</button>
-         <button class="btn" id="btnClearSelection">Clear selection</button>
-         <button class="btn primary" id="btnScheduleSelected">Schedule RELEASED for selected</button>
-         <button class="btn" id="btnScheduleAllEligible">Schedule RELEASED for ALL eligible</button>
-         <span class="mono" id="batchHint"></span>
-       </div>
-
-
-       <table class="table" id="tblProjects">
-         <thead>
-           <tr>
-             <th></th>
-             <th>Project</th>
-             <th>Site</th>
-             <th>ClusterGroup</th>
-             <th>MDA required?</th>
-             <th>Cluster Agile</th>
-             <th>MDA Agile</th>
-             <th>Latest RELEASED</th>
-             <th>Eligibility</th>
-           </tr>
-         </thead>
-         <tbody></tbody>
-       </table>
-       <div class="toast mono" id="projectsHint"></div>
-     </div>
-
-
-     <!-- Forms -->
-     <div class="card" id="dash-forms" style="display:none;">
-       <h3>Form Library (ECR/ACT for Form revisions)</h3>
-       <div class="banner">
-         “Current Approved” is the Form file ID stored in CONFIG → CURRENT_APPROVED_FORM_FILE_ID.
-         If REQUIRE_APPROVED_FORM=TRUE, RELEASED creation is blocked unless that Form is marked APPROVED.
-       </div>
-       <table class="table" id="tblForms">
-         <thead>
-           <tr>
-             <th>Rev</th>
-             <th>Status</th>
-             <th>Current</th>
-             <th>File</th>
-             <th>Created</th>
-             <th>ECR/ACT Ref</th>
-             <th>Action</th>
-           </tr>
-         </thead>
-         <tbody></tbody>
-       </table>
-     </div>
-
-
-     <!-- Agile -->
-     <div class="card" id="dash-agile" style="display:none;">
-       <h3>Agile BOM (latest per Site/Part)</h3>
-       <table class="table" id="tblAgileLatest">
-         <thead>
-           <tr>
-             <th>Site</th>
-             <th>Part</th>
-             <th>Rev</th>
-             <th>Date</th>
-             <th>Tab</th>
-             <th>Busway Supplier</th>
-             <th>Approval</th>
-             <th>Action</th>
-           </tr>
-         </thead>
-         <tbody></tbody>
-       </table>
-       <div class="toast mono" id="agileHint"></div>
-     </div>
-
-
-     <!-- Approvals -->
-     <div class="card" id="dash-approvals" style="display:none;">
-       <h3>Approvals Queue</h3>
-       <div class="row">
-         <label style="margin:0;">
-           <input type="checkbox" id="chkPendingOnly" checked>
-           Show pending only
-         </label>
-       </div>
-
-
-       <div class="banner" style="margin-top:10px;">
-         Create RELEASED is disabled until required approvals are completed (Agile approvals, and Form approval if enforced).
-       </div>
-
-
-       <h3 style="margin-top:10px;">Agile approvals</h3>
-       <table class="table" id="tblPendingAgile">
-         <thead>
-           <tr>
-             <th>Site</th>
-             <th>Part</th>
-             <th>Rev</th>
-             <th>Date</th>
-             <th>Tab</th>
-             <th>Busway Supplier</th>
-             <th>Approval</th>
-             <th>Action</th>
-           </tr>
-         </thead>
-         <tbody></tbody>
-       </table>
-
-
-       <h3 style="margin-top:12px;">Form approvals</h3>
-       <table class="table" id="tblPendingForms">
-         <thead>
-           <tr>
-             <th>Rev</th>
-             <th>Status</th>
-             <th>File</th>
-             <th>Created</th>
-             <th>ECR/ACT Ref</th>
-             <th>Action</th>
-           </tr>
-         </thead>
-         <tbody></tbody>
-       </table>
-     </div>
-   </section>
-
-
-   <!-- CREATE FORM -->
-   <section class="page" id="page-createForm">
-     <div class="card">
-       <h3>Schedule new mBOM Form revision (Copy Job)</h3>
-
-
-       <div class="banner">
-         Form copy can take time. This action is scheduled and visible in “Copy Monitoring”.
-         The previous Form revision is moved to “Obsolete”.
-       </div>
-
-
-       <div class="grid2">
-         <div>
-           <label>Base Form File ID (optional)</label>
-           <input id="formBaseId" placeholder="If empty, uses CURRENT_APPROVED_FORM_FILE_ID">
-         </div>
-         <div>
-           <label>New Form Rev (number)</label>
-           <input id="formNewRev" placeholder="e.g., 4">
-         </div>
-       </div>
-
-
-       <div class="grid2" style="margin-top:10px;">
-         <div>
-           <label>ECR/ACT Reference</label>
-           <input id="formChangeRef" placeholder="e.g., ECR-12345 or ACT-…">
-         </div>
-         <div>
-           <label>Affected Items (optional)</label>
-           <input id="formAffected" placeholder="optional">
-         </div>
-       </div>
-
-
-       <div style="margin-top:10px;">
-         <label>Description</label>
-         <textarea id="formDesc" placeholder="What changed and why"></textarea>
-       </div>
-
-
-       <div class="row" style="margin-top:10px;">
-         <button class="btn primary" id="btnScheduleForm">Schedule Form Revision</button>
-       </div>
-
-
-       <div class="toast" id="formOut" style="display:none;"></div>
-     </div>
-   </section>
-
-
-   <!-- CREATE RELEASED -->
-   <section class="page" id="page-createReleased">
-     <div class="card">
-       <h3>Schedule RELEASED mBOM (Copy Job)</h3>
-
-
-       <div class="banner" id="relBanner">
-         Create RELEASED will be disabled until required approvals are satisfied (Agile + Form), depending on Settings.
-       </div>
-
-
-       <div class="grid3">
-         <div>
-           <label>Project</label>
-           <select id="relProject"></select>
-           <div class="mono" id="relProjectMeta"></div>
-         </div>
-         <div>
-           <label>Freeze Agile inputs</label>
-           <select id="relFreeze">
-             <option value="true">Yes (recommended)</option>
-             <option value="false">No (keep linked)</option>
-           </select>
-         </div>
-         <div>
-           <label>ClusterGroup</label>
-           <input id="relClusterGroup" disabled>
-         </div>
-       </div>
-
-
-       <div class="grid2" style="margin-top:10px;">
-         <div>
-           <label>Cluster Agile (Zone) revision</label>
-           <select id="relClusterTab"></select>
-           <div class="mono" id="relClusterMeta"></div>
-         </div>
-
-
-         <div id="mdaBlock">
-           <label>MDA Agile revision (only for ClusterGroup = 1)</label>
-           <select id="relMdaTab"></select>
-           <div class="mono" id="relMdaMeta"></div>
-         </div>
-       </div>
-
-
-       <div class="grid2" style="margin-top:10px;">
-         <div>
-           <label>Cluster Busway Code (writes G2 in “Cluster” sheet)</label>
-           <select id="relClusterCode">
-             <option value="">(empty)</option>
-             <option value="EI">EI — E&amp;I</option>
-             <option value="EA">EA — EAE</option>
-             <option value="MA">MA — Mardix</option>
-           </select>
-           <div class="mono" id="relClusterBusway"></div>
-         </div>
-
-
-         <div id="mdaBuswayBlock">
-           <label>MDA Busway Code (writes G2 in “MDA” sheet)</label>
-           <select id="relMdaCode">
-             <option value="">(empty)</option>
-             <option value="EI">EI — E&amp;I</option>
-             <option value="ST">ST — Starline</option>
-           </select>
-           <div class="mono" id="relMdaBusway"></div>
-         </div>
-       </div>
-
-
-       <div class="grid2" style="margin-top:10px;">
-         <div>
-           <label>ECO (optional)</label>
-           <input id="relEco" placeholder="optional">
-         </div>
-         <div>
-           <label>Affected Items (optional)</label>
-           <input id="relAffected" placeholder="optional">
-         </div>
-       </div>
-
-
-       <div style="margin-top:10px;">
-         <label>Description</label>
-         <textarea id="relDesc" placeholder="Release reason / summary"></textarea>
-       </div>
-
-
-       <div class="row" style="margin-top:10px;">
-         <button class="btn primary" id="btnScheduleReleased">Schedule RELEASED</button>
-         <span class="mono" id="relControlMsg"></span>
-       </div>
-
-
-       <div class="toast" id="relOut" style="display:none;"></div>
-     </div>
-   </section>
-
-
-   <!-- COPY MONITORING -->
-   <section class="page" id="page-monitoring">
-     <div class="card">
-       <h3>Copy Monitoring (Jobs)</h3>
-       <div class="row">
-         <button class="btn" id="btnRefreshJobs">Refresh jobs</button>
-         <label style="margin:0;">
-           <input type="checkbox" id="chkAutoJobs" checked>
-           Auto-refresh while running
-         </label>
-       </div>
-
-
-       <table class="table" id="tblJobs">
-         <thead>
-           <tr>
-             <th>Created</th>
-             <th>Type</th>
-             <th>Status</th>
-             <th>Progress</th>
-             <th>Message</th>
-             <th>Results</th>
-             <th>Errors</th>
-           </tr>
-         </thead>
-         <tbody></tbody>
-       </table>
-
-
-       <div class="toast mono" id="jobsHint"></div>
-     </div>
-   </section>
-
-
-   <!-- PROJECT DATA -->
-   <section class="page" id="page-projectData">
-     <div class="card">
-       <h3>Project Data Explorer</h3>
-       <div class="row">
-         <div style="min-width:260px;">
-           <label>Project</label>
-           <select id="pdProject"></select>
-         </div>
-         <button class="btn primary" id="btnLoadProjectData">Load</button>
-       </div>
-
-
-       <div id="projectTree" style="margin-top:12px;"></div>
-     </div>
-   </section>
-
-
-   <!-- NOTIFICATIONS -->
-   <section class="page" id="page-notifications">
-     <div class="card">
-       <h3>Notification Settings</h3>
-       <div class="banner">
-         Recipients and switches are stored in NOTIF_CONFIG.
-         RELEASED notifications are grouped into digests over 4 hours (configurable).
-       </div>
-
-
-       <div class="toast mono" id="notifStatus"></div>
-
-
-       <table class="table" id="tblNotif">
-         <thead>
-           <tr><th>Key</th><th>Value</th><th>Description</th></tr>
-         </thead>
-         <tbody></tbody>
-       </table>
-
-
-       <div class="row" style="margin-top:10px;">
-         <button class="btn primary" id="btnSaveNotif">Save notification settings</button>
-       </div>
-
-
-       <div class="toast" id="notifOut" style="display:none;"></div>
-     </div>
-   </section>
-
-
-   <!-- SETTINGS -->
-   <section class="page" id="page-settings">
-     <div class="card">
-       <h3>Configuration</h3>
-       <div class="toast mono" id="settingsHint"></div>
-
-
-       <div class="row">
-         <button class="btn" id="btnRefreshFiles">Refresh Files Index (Drive)</button>
-         <button class="btn" id="btnReloadAll">Reload</button>
-       </div>
-
-
-       <table class="table" id="tblConfig">
-         <thead>
-           <tr><th>Key</th><th>Value</th></tr>
-         </thead>
-         <tbody></tbody>
-       </table>
-
-
-       <div class="row" style="margin-top:10px;">
-         <button class="btn primary" id="btnSaveConfig">Save configuration</button>
-       </div>
-
-
-       <div class="toast" id="cfgOut" style="display:none;"></div>
-     </div>
-   </section>
-
-
-   <!-- IMPORT -->
-   <section class="page" id="page-import">
-     <div class="card">
-       <h3>Import previously created RELEASED mBOMs (integrate to FILES)</h3>
-       <div class="banner">
-         Paste one per line:
-         - File URL or File ID, OR
-         - CSV: fileId,projectKey,rev,status
-       </div>
-       <label>Input</label>
-       <textarea id="importText" placeholder="https://docs.google.com/spreadsheets/d/FILEID/edit
+  <header class="topbar">
+    <div class="brand">
+      <img id="logoCompany" class="logo" alt="Company logo">
+      <div class="brandText">
+        <div class="title">VERDON mBOM App</div>
+        <div class="sub" id="sub">Loading…</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-page="dashboard">Dashboard</div>
+      <div class="tab" data-page="createForm">Create mBOM Form</div>
+      <div class="tab" data-page="createReleased">Create RELEASED</div>
+      <div class="tab" data-page="monitoring">Copy Monitoring</div>
+      <div class="tab" data-page="projectData">Project Data</div>
+      <div class="tab" data-page="notifications">Notifications</div>
+      <div class="tab" data-page="settings">Settings</div>
+      <div class="tab" data-page="import">Import</div>
+      <div class="tab" data-page="readme">README</div>
+    </div>
+
+    <div class="actions">
+      <div class="actionsRow">
+        <div class="opStatus" title="Current operation">
+          <div id="spinner" class="spinner"></div>
+          <div id="opLabel">Idle</div>
+        </div>
+        <button class="iconbtn" id="btnRefreshAgile" title="Refresh Agile Index">↻</button>
+        <button class="iconbtn" id="btnFullscreen" title="Fullscreen / Open Web App">⛶</button>
+        <img id="logoCustomer" class="logo" alt="Customer logo">
+      </div>
+      <div id="opLine" class="opLine"></div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <!-- DASHBOARD -->
+    <section class="page active" id="page-dashboard">
+      <div class="card">
+        <h3>Copy Jobs (progress)</h3>
+        <div id="jobsSummary" class="mono"></div>
+        <div id="jobsRunning" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="subtabs">
+        <div class="subtab active" data-sub="projects">Projects</div>
+        <div class="subtab" data-sub="forms">Form Library</div>
+        <div class="subtab" data-sub="agile">Agile BOM</div>
+        <div class="subtab" data-sub="approvals">Approvals</div>
+      </div>
+
+      <!-- Projects -->
+      <div class="card" id="dash-projects">
+        <h3>Projects (select to batch create RELEASED)</h3>
+
+        <div class="row">
+          <button class="btn" id="btnSelectEligible">Select eligible (approved)</button>
+          <button class="btn" id="btnClearSelection">Clear selection</button>
+          <button class="btn primary" id="btnScheduleSelected">Schedule RELEASED for selected</button>
+          <button class="btn" id="btnScheduleAllEligible">Schedule RELEASED for ALL eligible</button>
+          <span class="mono" id="batchHint"></span>
+        </div>
+
+        <table class="table" id="tblProjects">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Project</th>
+              <th>Site</th>
+              <th>ClusterGroup</th>
+              <th>MDA required?</th>
+              <th>Cluster Agile</th>
+              <th>MDA Agile</th>
+              <th>Latest RELEASED</th>
+              <th>Eligibility</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="toast mono" id="projectsHint"></div>
+      </div>
+
+      <!-- Forms -->
+      <div class="card" id="dash-forms" style="display:none;">
+        <h3>Form Library (ECR/ACT for Form revisions)</h3>
+        <div class="banner">
+          “Current Approved” is the Form file ID stored in CONFIG → CURRENT_APPROVED_FORM_FILE_ID.
+          If REQUIRE_APPROVED_FORM=TRUE, RELEASED creation is blocked unless that Form is marked APPROVED.
+        </div>
+        <table class="table" id="tblForms">
+          <thead>
+            <tr>
+              <th>Rev</th>
+              <th>Status</th>
+              <th>Current</th>
+              <th>File</th>
+              <th>Created</th>
+              <th>ECR/ACT Ref</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Agile -->
+      <div class="card" id="dash-agile" style="display:none;">
+        <h3>Agile BOM (latest per Site/Part)</h3>
+        <table class="table" id="tblAgileLatest">
+          <thead>
+            <tr>
+              <th>Site</th>
+              <th>Part</th>
+              <th>Rev</th>
+              <th>Date</th>
+              <th>Tab</th>
+              <th>Busway Supplier</th>
+              <th>Approval</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="toast mono" id="agileHint"></div>
+      </div>
+
+      <!-- Approvals -->
+      <div class="card" id="dash-approvals" style="display:none;">
+        <h3>Approvals Queue</h3>
+        <div class="row">
+          <label style="margin:0;">
+            <input type="checkbox" id="chkPendingOnly" checked>
+            Show pending only
+          </label>
+        </div>
+
+        <div class="banner" style="margin-top:10px;">
+          Create RELEASED is disabled until required approvals are completed (Agile approvals, and Form approval if enforced).
+        </div>
+
+        <h3 style="margin-top:10px;">Agile approvals</h3>
+        <table class="table" id="tblPendingAgile">
+          <thead>
+            <tr>
+              <th>Site</th>
+              <th>Part</th>
+              <th>Rev</th>
+              <th>Date</th>
+              <th>Tab</th>
+              <th>Busway Supplier</th>
+              <th>Approval</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 style="margin-top:12px;">Form approvals</h3>
+        <table class="table" id="tblPendingForms">
+          <thead>
+            <tr>
+              <th>Rev</th>
+              <th>Status</th>
+              <th>File</th>
+              <th>Created</th>
+              <th>ECR/ACT Ref</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CREATE FORM -->
+    <section class="page" id="page-createForm">
+      <div class="card">
+        <h3>Schedule new mBOM Form revision (Copy Job)</h3>
+
+        <div class="banner">
+          Form copy can take time. This action is scheduled and visible in “Copy Monitoring”.
+          The previous Form revision is moved to “Obsolete”.
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>Base Form File ID (optional)</label>
+            <input id="formBaseId" placeholder="If empty, uses CURRENT_APPROVED_FORM_FILE_ID">
+          </div>
+          <div>
+            <label>New Form Rev (number)</label>
+            <input id="formNewRev" placeholder="e.g., 4">
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:10px;">
+          <div>
+            <label>ECR/ACT Reference</label>
+            <input id="formChangeRef" placeholder="e.g., ECR-12345 or ACT-…">
+          </div>
+          <div>
+            <label>Affected Items (optional)</label>
+            <input id="formAffected" placeholder="optional">
+          </div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <label>Description</label>
+          <textarea id="formDesc" placeholder="What changed and why"></textarea>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnScheduleForm">Schedule Form Revision</button>
+        </div>
+
+        <div class="toast" id="formOut" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- CREATE RELEASED -->
+    <section class="page" id="page-createReleased">
+      <div class="card">
+        <h3>Schedule RELEASED mBOM (Copy Job)</h3>
+
+        <div class="banner" id="relBanner">
+          Create RELEASED will be disabled until required approvals are satisfied (Agile + Form), depending on Settings.
+        </div>
+
+        <div class="grid3">
+          <div>
+            <label>Project</label>
+            <select id="relProject"></select>
+            <div class="mono" id="relProjectMeta"></div>
+          </div>
+          <div>
+            <label>Freeze Agile inputs</label>
+            <select id="relFreeze">
+              <option value="true">Yes (recommended)</option>
+              <option value="false">No (keep linked)</option>
+            </select>
+          </div>
+          <div>
+            <label>ClusterGroup</label>
+            <input id="relClusterGroup" disabled>
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:10px;">
+          <div>
+            <label>Cluster Agile (Zone) revision</label>
+            <select id="relClusterTab"></select>
+            <div class="mono" id="relClusterMeta"></div>
+          </div>
+
+          <div id="mdaBlock">
+            <label>MDA Agile revision (only for ClusterGroup = 1)</label>
+            <select id="relMdaTab"></select>
+            <div class="mono" id="relMdaMeta"></div>
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:10px;">
+          <div>
+            <label>Cluster Busway Code (writes G2 in “Cluster” sheet)</label>
+            <select id="relClusterCode">
+              <option value="">(empty)</option>
+              <option value="EI">EI — E&amp;I</option>
+              <option value="EA">EA — EAE</option>
+              <option value="MA">MA — Mardix</option>
+            </select>
+            <div class="mono" id="relClusterBusway"></div>
+          </div>
+
+          <div id="mdaBuswayBlock">
+            <label>MDA Busway Code (writes G2 in “MDA” sheet)</label>
+            <select id="relMdaCode">
+              <option value="">(empty)</option>
+              <option value="EI">EI — E&amp;I</option>
+              <option value="ST">ST — Starline</option>
+            </select>
+            <div class="mono" id="relMdaBusway"></div>
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:10px;">
+          <div>
+            <label>ECO (optional)</label>
+            <input id="relEco" placeholder="optional">
+          </div>
+          <div>
+            <label>Affected Items (optional)</label>
+            <input id="relAffected" placeholder="optional">
+          </div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <label>Description</label>
+          <textarea id="relDesc" placeholder="Release reason / summary"></textarea>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnScheduleReleased">Schedule RELEASED</button>
+          <span class="mono" id="relControlMsg"></span>
+        </div>
+
+        <div class="toast" id="relOut" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- COPY MONITORING -->
+    <section class="page" id="page-monitoring">
+      <div class="card">
+        <h3>Copy Monitoring (Jobs)</h3>
+        <div class="row">
+          <button class="btn" id="btnRefreshJobs">Refresh jobs</button>
+          <label style="margin:0;">
+            <input type="checkbox" id="chkAutoJobs" checked>
+            Auto-refresh while running
+          </label>
+        </div>
+
+
+        <table class="table" id="tblJobs">
+          <thead>
+            <tr>
+              <th>Created</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Progress</th>
+              <th>Message</th>
+              <th>Results</th>
+              <th>Errors</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+
+        <div class="toast mono" id="jobsHint"></div>
+      </div>
+    </section>
+
+    <!-- PROJECT DATA -->
+    <section class="page" id="page-projectData">
+      <div class="card">
+        <h3>Project Data Explorer</h3>
+        <div class="row">
+          <div style="min-width:260px;">
+            <label>Project</label>
+            <select id="pdProject"></select>
+          </div>
+          <button class="btn primary" id="btnLoadProjectData">Load</button>
+        </div>
+
+        <div id="projectTree" style="margin-top:12px;"></div>
+      </div>
+    </section>
+
+    <!-- NOTIFICATIONS -->
+    <section class="page" id="page-notifications">
+      <div class="card">
+        <h3>Notification Settings</h3>
+        <div class="banner">
+          Recipients and switches are stored in NOTIF_CONFIG.
+          RELEASED notifications are grouped into digests over 4 hours (configurable).
+        </div>
+
+        <div class="toast mono" id="notifStatus"></div>
+
+        <table class="table" id="tblNotif">
+          <thead>
+            <tr><th>Key</th><th>Value</th><th>Description</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnSaveNotif">Save notification settings</button>
+        </div>
+
+        <div class="toast" id="notifOut" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" id="page-settings">
+      <div class="card">
+        <h3>Configuration</h3>
+        <div class="toast mono" id="settingsHint"></div>
+
+        <div class="row">
+          <button class="btn" id="btnRefreshFiles">Refresh Files Index (Drive)</button>
+          <button class="btn" id="btnReloadAll">Reload</button>
+        </div>
+
+        <table class="table" id="tblConfig">
+          <thead>
+            <tr><th>Key</th><th>Value</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnSaveConfig">Save configuration</button>
+        </div>
+
+        <div class="toast" id="cfgOut" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- IMPORT -->
+    <section class="page" id="page-import">
+      <div class="card">
+        <h3>Import previously created RELEASED mBOMs (integrate to FILES)</h3>
+        <div class="banner">
+          Paste one per line:
+          - File URL or File ID, OR
+          - CSV: fileId,projectKey,rev,status
+        </div>
+        <label>Input</label>
+        <textarea id="importText" placeholder="https://docs.google.com/spreadsheets/d/FILEID/edit
 FILEID
 FILEID,GRQ6A-2,3,RELEASED"></textarea>
 
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnImport">Import</button>
+        </div>
 
-       <div class="row" style="margin-top:10px;">
-         <button class="btn primary" id="btnImport">Import</button>
-       </div>
+        <div class="toast" id="importOut" style="display:none;"></div>
+      </div>
+    </section>
 
-
-       <div class="toast" id="importOut" style="display:none;"></div>
-     </div>
-   </section>
-
-
-   <!-- README -->
-   <section class="page" id="page-readme">
-     <div class="card">
-       <h3>README</h3>
-       <div class="toast" style="white-space:pre-wrap; line-height:1.45;">
+    <!-- README -->
+    <section class="page" id="page-readme">
+      <div class="card">
+        <h3>README</h3>
+        <div class="toast" style="white-space:pre-wrap; line-height:1.45;">
 This app manages:
 - Agile BOM indexing + approvals
 - mBOM Form revision control
@@ -498,18 +450,15 @@ This app manages:
 - Background copy monitoring (Jobs)
 - Email notifications (Agile published / Form created / RELEASED digest)
 
-
 Key rules:
 - ClusterGroup = 1 => MDA required.
 - ClusterGroup != 1 => MDA not used (MDA SheetName stays empty).
 - If REQUIRE_APPROVED_FORM and/or REQUIRE_APPROVED_AGILE are TRUE:
- - RELEASED creation is blocked until Form and Agile approvals are satisfied.
-
+  - RELEASED creation is blocked until Form and Agile approvals are satisfied.
 
 Copy Monitoring:
 - Form and RELEASED creation are scheduled as jobs.
 - View progress in “Copy Monitoring” and in the Dashboard “Copy Jobs” card.
-
 
 Notifications:
 - Agile published (new latest): email to Engineering recipients.
@@ -517,1099 +466,982 @@ Notifications:
 - RELEASED created: digest to Ops recipients (grouped over 4 hours).
 Configure in Notifications tab.
 
-
 Import:
 - Use Import tab to register older RELEASED files into FILES.
-       </div>
-     </div>
-   </section>
- </div>
-
+        </div>
+      </div>
+    </section>
+  </div>
 
 <script>
- let BOOT = null;
- let cacheClusterRows = [];
- let cacheMdaRows = [];
- let jobsPollTimer = null;
-
-
- function $(id){ return document.getElementById(id); }
-
-
- function setLogo(imgEl, url){
-   const u = (url || '').trim();
-   if (!u) { imgEl.style.display='none'; imgEl.src=''; return; }
-   imgEl.src = u;
-   imgEl.style.display = 'block';
- }
-
-
- function setBusy(on, label){
-   $('spinner').style.display = on ? 'block' : 'none';
-   $('opLine').style.display = on ? 'block' : 'none';
-   $('opLabel').textContent = on ? (label || 'Working…') : 'Idle';
- }
-
-
- function call(fn, payload) {
-   return new Promise((resolve, reject) => {
-     google.script.run.withSuccessHandler(resolve).withFailureHandler(err => reject(err))[fn](payload);
-   });
- }
-
-
- async function run(label, fn, payload){
-   const DEBUG = (window.MBOM_DEBUG === true) || (localStorage.getItem('MBOM_DEBUG') === '1');
-   const t0 = performance.now();
-
-
-   if (DEBUG) {
-     console.group(`[mBOM] CALL ${fn}`);
-     console.log('label:', label);
-     console.log('payload:', payload);
-   }
-
-
-   setBusy(true, label);
-
-
-   try{
-     const res = await call(fn, payload);
-
-
-     if (DEBUG) {
-       const dt = Math.round(performance.now() - t0);
-       console.log('duration_ms:', dt);
-       console.log('result_type:', typeof res);
-       console.log('result:', res);
-
-
-       // Best-effort size
-       try {
-         const s = JSON.stringify(res);
-         console.log('result_json_length:', s.length);
-       } catch(e) {
-         console.log('result_json_length: (failed stringify)', e);
-       }
-       console.groupEnd();
-     }
-
-
-     return res;
-   } catch(err){
-     if (DEBUG) {
-       console.error(`[mBOM] CALL FAILED ${fn}`, err);
-       console.groupEnd();
-     }
-     throw err;
-   } finally {
-     setBusy(false, '');
-   }
- }
-
-
-
-
- function pill(status){
-   const s = String(status||'').toUpperCase();
-   if (s === 'APPROVED') return '<span class="pill ok">APPROVED</span>';
-   if (s === 'REJECTED') return '<span class="pill bad">REJECTED</span>';
-   if (s === 'CURRENT') return '<span class="pill blue">CURRENT</span>';
-   if (!s) return '<span class="pill warn">UNSET</span>';
-   return `<span class="pill warn">${s}</span>`;
- }
-
-
- function fileLink(url, label){
-   if (!url) return '<span class="mono">—</span>';
-   return `<a href="${url}" target="_blank">${label || 'Open'}</a>`;
- }
-
-
- function fmtDate(iso){
-   if (!iso) return '';
-   try{
-     const d = new Date(iso);
-     if (isNaN(d.getTime())) return String(iso);
-     return d.toLocaleString();
-   }catch(e){ return String(iso); }
- }
-
-
- // Tabs navigation
- document.querySelectorAll('.tab').forEach(t => {
-   t.addEventListener('click', () => {
-     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-     t.classList.add('active');
-     const page = t.dataset.page;
-     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-     $('page-' + page).classList.add('active');
-   });
- });
-
-
- // Dashboard subtabs
- document.querySelectorAll('.subtab').forEach(st => {
-   st.addEventListener('click', () => {
-     document.querySelectorAll('.subtab').forEach(x => x.classList.remove('active'));
-     st.classList.add('active');
-
-
-     const sub = st.dataset.sub;
-     $('dash-projects').style.display = (sub === 'projects') ? '' : 'none';
-     $('dash-forms').style.display = (sub === 'forms') ? '' : 'none';
-     $('dash-agile').style.display = (sub === 'agile') ? '' : 'none';
-     $('dash-approvals').style.display = (sub === 'approvals') ? '' : 'none';
-   });
- });
-
-
- $('btnRefreshAgile').addEventListener('click', async () => {
-   try {
-     await run('Refreshing Agile Index…', 'api_refreshAgileIndex');
-     await bootstrap();
-   } catch(e){
-     alert('Agile refresh failed: ' + (e.message || e));
-   }
- });
-
-
- $('btnFullscreen').addEventListener('click', async () => {
-   try{
-     if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
-     else await document.exitFullscreen();
-   } catch(e){
-     if (BOOT && BOOT.webAppUrl) window.open(BOOT.webAppUrl, '_blank');
-     else alert('Fullscreen may be blocked in this window. Deploy as Web App to open in full tab.');
-   }
- });
-
-
- $('btnReloadAll').addEventListener('click', bootstrap);
-
-
- $('btnRefreshFiles').addEventListener('click', async () => {
-   try{
-     const res = await run('Refreshing Files Index…', 'api_refreshFilesIndex');
-     alert(`Files indexed. Inserted: ${res.inserted}, Updated: ${res.updated}`);
-     await bootstrap();
-   } catch(e){
-     alert('Files refresh failed: ' + (e.message || e));
-   }
- });
-
-
- // Create Form -> schedule
- $('btnScheduleForm').addEventListener('click', async () => {
-   const out = $('formOut');
-   out.style.display='block';
-   out.textContent = 'Scheduling…';
-   try{
-     const payload = {
-       baseFormFileId: $('formBaseId').value.trim(),
-       newFormRev: Number($('formNewRev').value.trim()),
-       ecrActRef: $('formChangeRef').value.trim(),
-       affectedItems: $('formAffected').value.trim(),
-       description: $('formDesc').value.trim()
-     };
-     const res = await run('Scheduling Form copy…', 'api_scheduleFormRevision', payload);
-     out.innerHTML = `Scheduled Job: <span class="mono">${res.jobId}</span>. Track it in “Copy Monitoring”.`;
-     await bootstrap();
-     switchTo('monitoring');
-   } catch(e){
-     out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
-   }
- });
-
-
- // Create Released -> schedule
- $('btnScheduleReleased').addEventListener('click', async () => {
-   const out = $('relOut');
-   out.style.display='block';
-   out.textContent = 'Scheduling…';
-   try{
-     const p = currentProject();
-     if (!p) throw new Error('Invalid project selection');
-
-
-     const includeMda = !!p.includeMda;
-
-
-     const payload = {
-       projectKey: p.projectKey,
-       includeMda,
-       freezeAgileInputs: $('relFreeze').value === 'true',
-       agileTabCluster: $('relClusterTab').value,
-       agileTabMDA: includeMda ? $('relMdaTab').value : '',
-       buswayClusterCode: $('relClusterCode').value,
-       buswayMdaCode: includeMda ? $('relMdaCode').value : '',
-       eco: $('relEco').value.trim(),
-       affectedItems: $('relAffected').value.trim(),
-       description: $('relDesc').value.trim()
-     };
-
-
-     const res = await run('Scheduling RELEASED copy…', 'api_scheduleReleasedForProject', payload);
-     out.innerHTML = `Scheduled Job: <span class="mono">${res.jobId}</span>. Track it in “Copy Monitoring”.`;
-     await bootstrap();
-     switchTo('monitoring');
-   } catch(e){
-     out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
-   }
- });
-
-
- // Import
- $('btnImport').addEventListener('click', async () => {
-   const out = $('importOut');
-   out.style.display='block';
-   out.textContent = 'Importing…';
-   try{
-     const res = await run('Importing files…', 'api_importReleased', { text: $('importText').value });
-     out.innerHTML = `<div class="mono">Imported: ${res.imported} • Skipped: ${res.skipped} • Errors: ${res.errors.length}</div>
-       <div class="mono">${(res.errors||[]).slice(0,10).map(e=>`• ${e}`).join('<br>')}</div>`;
-     await bootstrap();
-   } catch(e){
-     out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
-   }
- });
-
-
- // Notifications save
- $('btnSaveNotif').addEventListener('click', async () => {
-   const out = $('notifOut');
-   out.style.display='block';
-   out.textContent = 'Saving…';
-   try{
-     const updates = {};
-     $('tblNotif').querySelectorAll('input[data-key]').forEach(inp => updates[inp.dataset.key] = inp.value);
-     const res = await run('Saving notifications…', 'api_updateNotifSettings', { updates });
-     out.innerHTML = `Saved. Updated keys: ${res.updated}`;
-     await bootstrap();
-   } catch(e){
-     out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
-   }
- });
-
-
- // Settings save
- $('btnSaveConfig').addEventListener('click', async () => {
-   const out = $('cfgOut');
-   out.style.display='block';
-   out.textContent = 'Saving…';
-   try{
-     const updates = {};
-     $('tblConfig').querySelectorAll('input[data-key]').forEach(inp => updates[inp.dataset.key] = inp.value);
-     const res = await run('Saving configuration…', 'api_updateConfig', { updates });
-     out.innerHTML = `Saved. Updated keys: ${res.updated}`;
-     await bootstrap();
-   } catch(e){
-     out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
-   }
- });
-
-
- // Monitoring refresh
- $('btnRefreshJobs').addEventListener('click', refreshJobs);
-
-
- // Approvals filter
- $('chkPendingOnly').addEventListener('change', () => renderApprovals());
-
-
- // Project Data
- $('btnLoadProjectData').addEventListener('click', async () => {
-   const pk = $('pdProject').value;
-   $('projectTree').innerHTML = '<div class="mono">Loading…</div>';
-   try{
-     const res = await run('Loading project data…', 'api_getProjectData', { projectKey: pk });
-     renderProjectTree(res.data);
-   } catch(e){
-     $('projectTree').innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
-   }
- });
-
-
- // Batch selection controls
- $('btnClearSelection').addEventListener('click', () => {
-   document.querySelectorAll('input[data-projchk]').forEach(c => c.checked = false);
- });
-
-
- $('btnSelectEligible').addEventListener('click', () => {
-   const projects = BOOT.dashboard.projects || [];
-   projects.forEach(p => {
-     const ok = computeEligibility(p);
-     const el = document.querySelector(`input[data-projchk="${p.projectKey}"]`);
-     if (el) el.checked = ok;
-   });
- });
-
-
- $('btnScheduleSelected').addEventListener('click', async () => {
-   try{
-     const selected = Array.from(document.querySelectorAll('input[data-projchk]:checked')).map(x => x.dataset.projchk);
-     if (!selected.length) return alert('No projects selected.');
-
-
-     const res = await run('Scheduling batch RELEASED…', 'api_scheduleReleasedForSelected', {
-       projectKeys: selected,
-       onlyEligible: false,
-       freezeAgileInputs: (BOOT.config.freezeDefault === true),
-       batchSize: 3,
-       description: 'Batch RELEASED creation (selected projects)'
-     });
-
-
-     alert(`Scheduled Job: ${res.jobId}`);
-     await bootstrap();
-     switchTo('monitoring');
-   } catch(e){
-     alert('Batch schedule failed: ' + (e.message || e));
-   }
- });
-
-
- $('btnScheduleAllEligible').addEventListener('click', async () => {
-   try{
-     const res = await run('Scheduling ALL eligible RELEASED…', 'api_scheduleReleasedForAll', {
-       onlyEligible: true,
-       freezeAgileInputs: (BOOT.config.freezeDefault === true),
-       batchSize: 3,
-       description: 'Batch RELEASED creation (all eligible approved projects)'
-     });
-     alert(`Scheduled Job: ${res.jobId}`);
-     await bootstrap();
-     switchTo('monitoring');
-   } catch(e){
-     alert('Schedule failed: ' + (e.message || e));
-   }
- });
-
-
- // Create RELEASED selectors
- $('relProject').addEventListener('change', refreshReleaseSelectors);
- $('relClusterTab').addEventListener('change', async () => { updateAgileMeta(); updateBuswaySuggestions(); await updateControlledReleaseMsg(); });
- $('relMdaTab').addEventListener('change', async () => { updateAgileMeta(); updateBuswaySuggestions(); await updateControlledReleaseMsg(); });
-
-
- function switchTo(page){
-   document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-   document.querySelector(`.tab[data-page="${page}"]`).classList.add('active');
-   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-   $('page-' + page).classList.add('active');
- }
-
-
- function currentProject(){
-   const pk = $('relProject').value;
-   return (BOOT.dashboard.projects || []).find(x => x.projectKey === pk) || null;
- }
-
-
- function computeEligibility(p){
-   // Client-side visibility. Server still enforces.
-   if (BOOT.config.requireApprovedForm && !BOOT.dashboard.latestApprovedForm) return false;
-   if (BOOT.config.requireApprovedAgile) {
-     if (String(p.clusterApproval||'').toUpperCase() !== 'APPROVED') return false;
-     if (p.includeMda && String(p.mdaApproval||'').toUpperCase() !== 'APPROVED') return false;
-   }
-   return true;
- }
-
-
- function renderJobsTop(){
-   const s = BOOT.jobs.summary;
-   $('jobsSummary').textContent = `Queued: ${s.queued} • Running: ${s.running} • Done: ${s.done} • Done(w/Errors): ${s.doneWithErrors} • Error: ${s.error}`;
-
-
-   const running = BOOT.jobs.runningJob;
-   if (!running) {
-     $('jobsRunning').innerHTML = '<span class="mono">No running job.</span>';
-     return;
-   }
-
-
-   const pct = running.progressTotal ? Math.round((running.progressCurrent / running.progressTotal) * 100) : 0;
-
-
-   $('jobsRunning').innerHTML = `
-     <div class="mono">Running: ${running.type} • ${running.status} • ${running.progressCurrent}/${running.progressTotal} • ${running.message}</div>
-     <div class="bar" style="margin-top:6px;"><div style="width:${pct}%;"></div></div>
-   `;
- }
-
-
- async function refreshJobs(){
-   const res = await call('api_listJobs', { limit: 50, activeOnly: false });
-   renderJobsTable(res.jobs || []);
-   // also refresh header card without full bootstrap
-   BOOT.jobs.summary = res.summary.summary;
-   BOOT.jobs.runningJob = res.summary.runningJob;
-   renderJobsTop();
- }
-
-
- function renderJobsTable(jobs){
-   const tbody = $('tblJobs').querySelector('tbody');
-   tbody.innerHTML = '';
-   $('jobsHint').textContent = 'Jobs run sequentially. Status updates as background triggers execute.';
-
-
-   jobs.forEach(j => {
-     const pct = j.progressTotal ? Math.round((j.progressCurrent / j.progressTotal) * 100) : 0;
-     const resultsHtml = (j.results || []).map(r => {
-       if (r.url && r.name) return `<div class="mono">${fileLink(r.url, r.name)}</div>`;
-       if (r.url) return `<div class="mono">${fileLink(r.url, 'Open')}</div>`;
-       if (r.projectKey && r.url) return `<div class="mono">${r.projectKey}: ${fileLink(r.url,'Open')}</div>`;
-       return `<div class="mono">${JSON.stringify(r)}</div>`;
-     }).join('');
-
-
-     const errorsHtml = (j.errors || []).map(e => `<div class="mono" style="color:var(--red)">• ${(e.projectKey? (e.projectKey + ': ') : '')}${e.error}</div>`).join('');
-
-
-     const tr = document.createElement('tr');
-     tr.innerHTML = `
-       <td class="mono">${fmtDate(j.createdAt)}</td>
-       <td class="mono">${j.type}</td>
-       <td>${pill(j.status)}</td>
-       <td>
-         <div class="mono">${j.progressCurrent}/${j.progressTotal} (${pct}%)</div>
-         <div class="bar"><div style="width:${pct}%;"></div></div>
-       </td>
-       <td class="mono">${j.message || ''}</td>
-       <td>${resultsHtml || '<span class="mono">—</span>'}</td>
-       <td>${errorsHtml || '<span class="mono">—</span>'}</td>
-     `;
-     tbody.appendChild(tr);
-   });
- }
-
-
- function renderProjects(projects){
-   const tbody = $('tblProjects').querySelector('tbody');
-   tbody.innerHTML = '';
-
-
-   $('projectsHint').textContent =
-     'Select projects to schedule batch RELEASED. Eligibility depends on approvals and Settings (Require Approved Form/Agile).';
-
-
-   projects.forEach(p => {
-     const eligible = computeEligibility(p);
-     const rel = p.latestReleased;
-     const relCell = rel ? `${fileLink(rel.url, `Rev ${rel.mbomRev}`)}<div class="mono">${rel.status || ''}</div>` : '<span class="mono">—</span>';
-
-
-     const tr = document.createElement('tr');
-     tr.innerHTML = `
-       <td><input type="checkbox" data-projchk="${p.projectKey}"></td>
-       <td><span class="pill ok">${p.projectKey}</span></td>
-       <td class="mono">${p.site}</td>
-       <td>
-         <select data-act="clusterGroup" data-project="${p.projectKey}">
-           ${[1,2,3,4,5,6,7,8,9].map(n => `<option value="${n}" ${Number(p.clusterGroup)===n?'selected':''}>${n}</option>`).join('')}
-         </select>
-       </td>
-       <td>${p.includeMda ? '<span class="pill ok">YES</span>' : '<span class="pill warn">NO</span>'}</td>
-       <td class="mono">Rev ${p.clusterRev || ''} • ${p.clusterTab || ''}<br>${pill(p.clusterApproval)}</td>
-       <td class="mono">${p.includeMda ? `Rev ${p.mdaRev || ''} • ${p.mdaTab || ''}<br>${pill(p.mdaApproval)}` : 'Hidden (not required)'}</td>
-       <td>${relCell}</td>
-       <td>${eligible ? '<span class="pill ok">Eligible</span>' : '<span class="pill warn">Blocked</span>'}</td>
-     `;
-     tbody.appendChild(tr);
-   });
-
-
-   tbody.querySelectorAll('select[data-act="clusterGroup"]').forEach(sel => {
-     sel.addEventListener('change', async () => {
-       try{
-         await run('Updating ClusterGroup…', 'api_setProjectClusterGroup', { projectKey: sel.dataset.project, clusterGroup: Number(sel.value) });
-         await bootstrap();
-       } catch(e){
-         alert('ClusterGroup update failed: ' + (e.message || e));
-       }
-     });
-   });
- }
-
-
- function renderForms(forms){
-   const tbody = $('tblForms').querySelector('tbody');
-   tbody.innerHTML = '';
-
-
-   const currentId = (BOOT.config.currentApprovedFormFileId || '').trim();
-
-
-   forms.sort((a,b) => Number(b.mbomRev||0) - Number(a.mbomRev||0));
-   forms.forEach(f => {
-     const isCurrent = currentId && (String(f.fileId).trim() === currentId);
-
-
-     const tr = document.createElement('tr');
-     tr.innerHTML = `
-       <td class="mono">${f.mbomRev || ''}</td>
-       <td>
-         <select data-act="setStatus" data-file="${f.fileId}">
-           ${['DRAFT','APPROVED','OBSOLETE'].map(s => `<option value="${s}" ${String(f.status||'').toUpperCase()===s?'selected':''}>${s}</option>`).join('')}
-         </select>
-       </td>
-       <td>${isCurrent ? pill('CURRENT') : '<span class="mono">—</span>'}</td>
-       <td>${fileLink(f.url,'Open')}</td>
-       <td class="mono">${fmtDate(f.createdAt)}</td>
-       <td class="mono">${f.eco || ''}</td>
-       <td>
-         ${isCurrent
-           ? '<span class="mono">Current Approved</span>'
-           : `<button class="btn primary" data-act="setCurrentApproved" data-file="${f.fileId}">Set Current</button>`
-         }
-       </td>
-     `;
-     tbody.appendChild(tr);
-   });
-
-
-   tbody.querySelectorAll('select[data-act="setStatus"]').forEach(sel => {
-     sel.addEventListener('change', async () => {
-       try { await run('Updating status…','api_setFileStatus',{ fileId: sel.dataset.file, status: sel.value }); await bootstrap(); }
-       catch(e){ alert('Status update failed: ' + (e.message || e)); }
-     });
-   });
-
-
-   tbody.querySelectorAll('button[data-act="setCurrentApproved"]').forEach(btn => {
-     btn.addEventListener('click', async () => {
-       try{
-         await run('Setting current approved…','api_setApprovedFormFileId', btn.dataset.file);
-         await bootstrap();
-       } catch(e){
-         alert('Update failed: ' + (e.message || e));
-       }
-     });
-   });
- }
-
-
- function renderAgileLatest(rows){
-   const tbody = $('tblAgileLatest').querySelector('tbody');
-   tbody.innerHTML = '';
-   $('agileHint').textContent = 'Approve latest Agile tabs to enable controlled RELEASED creation.';
-
-
-   rows.forEach(r => {
-     const tr = document.createElement('tr');
-     tr.innerHTML = `
-       <td class="mono">${r.site}</td>
-       <td class="mono">${r.partNorm}</td>
-       <td class="mono">${r.rev}</td>
-       <td class="mono">${r.downloadDate}</td>
-       <td class="mono">${r.tabName}</td>
-       <td class="mono">${r.buswaySupplier || ''}</td>
-       <td>${pill(r.approvalStatus)}</td>
-       <td>
-         <button class="btn" data-act="approveAgile" data-tab="${r.tabName}">Approve</button>
-         <button class="btn danger" data-act="rejectAgile" data-tab="${r.tabName}">Reject</button>
-       </td>
-     `;
-     tbody.appendChild(tr);
-   });
-
-
-   tbody.querySelectorAll('button[data-act="approveAgile"]').forEach(btn => {
-     btn.addEventListener('click', async () => {
-       const notes = prompt(`Approve Agile Tab:\n${btn.dataset.tab}\n\nNotes (optional):`, '') || '';
-       try{ await run('Approving Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'APPROVED', notes }); await bootstrap(); }
-       catch(e){ alert('Approval failed: ' + (e.message || e)); }
-     });
-   });
-
-
-   tbody.querySelectorAll('button[data-act="rejectAgile"]').forEach(btn => {
-     btn.addEventListener('click', async () => {
-       const notes = prompt(`Reject Agile Tab:\n${btn.dataset.tab}\n\nReason:`, '') || '';
-       try{ await run('Rejecting Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'REJECTED', notes }); await bootstrap(); }
-       catch(e){ alert('Rejection failed: ' + (e.message || e)); }
-     });
-   });
- }
-
-
- function renderApprovals(){
-   const pendingOnly = $('chkPendingOnly').checked;
-
-
-   // Agile approvals
-   const tbodyA = $('tblPendingAgile').querySelector('tbody');
-   tbodyA.innerHTML = '';
-
-
-   const agile = BOOT.dashboard.agileLatest || [];
-   const agileRows = pendingOnly ? agile.filter(x => String(x.approvalStatus).toUpperCase() !== 'APPROVED') : agile;
-
-
-   agileRows.forEach(r => {
-     const tr = document.createElement('tr');
-     tr.innerHTML = `
-       <td class="mono">${r.site}</td>
-       <td class="mono">${r.partNorm}</td>
-       <td class="mono">${r.rev}</td>
-       <td class="mono">${r.downloadDate}</td>
-       <td class="mono">${r.tabName}</td>
-       <td class="mono">${r.buswaySupplier || ''}</td>
-       <td>${pill(r.approvalStatus)}</td>
-       <td><button class="btn" data-tab="${r.tabName}">Approve</button></td>
-     `;
-     tbodyA.appendChild(tr);
-   });
-
-
-   tbodyA.querySelectorAll('button[data-tab]').forEach(btn => {
-     btn.addEventListener('click', async () => {
-       const notes = prompt(`Approve Agile Tab:\n${btn.dataset.tab}\n\nNotes (optional):`, '') || '';
-       try{ await run('Approving Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'APPROVED', notes }); await bootstrap(); }
-       catch(e){ alert('Approval failed: ' + (e.message || e)); }
-     });
-   });
-
-
-   // Form approvals
-   const tbodyF = $('tblPendingForms').querySelector('tbody');
-   tbodyF.innerHTML = '';
-
-
-   const forms = pendingOnly
-     ? (BOOT.forms || []).filter(f => String(f.status||'').toUpperCase() !== 'APPROVED')
-     : (BOOT.forms || []);
-
-
-   forms.sort((a,b)=>Number(b.mbomRev||0)-Number(a.mbomRev||0));
-   forms.forEach(f => {
-     const tr = document.createElement('tr');
-     tr.innerHTML = `
-       <td class="mono">${f.mbomRev}</td>
-       <td>${pill(f.status)}</td>
-       <td>${fileLink(f.url,'Open')}</td>
-       <td class="mono">${fmtDate(f.createdAt)}</td>
-       <td class="mono">${f.eco || ''}</td>
-       <td><button class="btn primary" data-file="${f.fileId}">Mark APPROVED</button></td>
-     `;
-     tbodyF.appendChild(tr);
-   });
-
-
-   tbodyF.querySelectorAll('button[data-file]').forEach(btn => {
-     btn.addEventListener('click', async () => {
-       try{
-         await run('Approving Form…','api_setFileStatus',{ fileId: btn.dataset.file, status:'APPROVED' });
-         await bootstrap();
-       } catch(e){
-         alert('Form approval failed: ' + (e.message || e));
-       }
-     });
-   });
- }
-
-
- function renderConfig(rows){
-   const tbody = $('tblConfig').querySelector('tbody');
-   tbody.innerHTML = '';
-   rows.forEach(r => {
-     const tr = document.createElement('tr');
-     tr.innerHTML = `<td class="mono">${r.key}</td><td><input data-key="${r.key}" value="${String(r.value||'').replaceAll('"','&quot;')}"></td>`;
-     tbody.appendChild(tr);
-   });
-
-
-   $('settingsHint').innerHTML =
-     `Web App URL: <span class="mono">${BOOT.webAppUrl || '(not deployed)'}</span><br>
-      Logos: set COMPANY_LOGO_URL and CUSTOMER_LOGO_URL in CONFIG.`;
- }
-
-
- function renderNotif(rows, status){
-   const tbody = $('tblNotif').querySelector('tbody');
-   tbody.innerHTML = '';
-   rows.forEach(r => {
-     const tr = document.createElement('tr');
-     tr.innerHTML = `
-       <td class="mono">${r.key}</td>
-       <td><input data-key="${r.key}" value="${String(r.value||'').replaceAll('"','&quot;')}"></td>
-       <td class="mono">${r.desc || ''}</td>
-     `;
-     tbody.appendChild(tr);
-   });
-
-
-   $('notifStatus').textContent =
-     `RELEASED queue: ${status.releasedQueueCount} • last sent: ${status.releasedLastSentAt || '—'} • next scheduled: ${status.releasedNextSendAt || '—'}`;
- }
-
-
- // Create RELEASED page: populate + enforce eligibility + hide MDA when not required
- function populateProjectsDropdown(projects){
-   $('relProject').innerHTML = '';
-   $('pdProject').innerHTML = '';
-   projects.forEach(p => {
-     const opt = document.createElement('option');
-     opt.value = p.projectKey;
-     opt.textContent = p.projectKey;
-     $('relProject').appendChild(opt);
-
-
-     const opt2 = document.createElement('option');
-     opt2.value = p.projectKey;
-     opt2.textContent = p.projectKey;
-     $('pdProject').appendChild(opt2);
-   });
- }
-
-
- async function refreshReleaseSelectors(){
-   const p = currentProject();
-   if (!p) return;
-
-
-   $('relClusterGroup').value = String(p.clusterGroup || '');
-   $('relProjectMeta').textContent = `Site: ${p.site} • Include MDA: ${p.includeMda ? 'YES' : 'NO'}`;
-
-
-   // Hide MDA blocks entirely when not required (ClusterGroup != 1)
-   $('mdaBlock').style.display = p.includeMda ? '' : 'none';
-   $('mdaBuswayBlock').style.display = p.includeMda ? '' : 'none';
-
-
-   const clusterPart = `Zone ${p.zone}`;
-   const clusterRes = await call('api_listAgileTabs', { site: p.site, part: clusterPart });
-   cacheClusterRows = clusterRes.rows || [];
-   fillAgileSelect($('relClusterTab'), cacheClusterRows, p.clusterTab);
-
-
-   if (p.includeMda) {
-     const mdaRes = await call('api_listAgileTabs', { site: p.site, part: 'MDA' });
-     cacheMdaRows = mdaRes.rows || [];
-     fillAgileSelect($('relMdaTab'), cacheMdaRows, p.mdaTab);
-   } else {
-     cacheMdaRows = [];
-     $('relMdaTab').innerHTML = '';
-     $('relMdaMeta').textContent = '';
-     $('relMdaBusway').textContent = '';
-     $('relMdaCode').value = '';
-   }
-
-
-   updateAgileMeta();
-   updateBuswaySuggestions();
-   await updateControlledReleaseMsg();
- }
-
-
- function fillAgileSelect(selectEl, rows, preferredTab){
-   selectEl.innerHTML = '';
-   rows.forEach(r => {
-     const opt = document.createElement('option');
-     opt.value = r.tabName;
-     opt.textContent = `Rev ${r.rev} • ${r.downloadDate} • ${r.tabName} • ${r.approvalStatus}`;
-     if (preferredTab && r.tabName === preferredTab) opt.selected = true;
-     selectEl.appendChild(opt);
-   });
-   if (!selectEl.value && rows.length) selectEl.value = rows[0].tabName;
- }
-
-
- function findRow(rows, tab){ return (rows||[]).find(r => r.tabName === tab) || null; }
-
-
- function updateAgileMeta(){
-   const c = findRow(cacheClusterRows, $('relClusterTab').value);
-   if (c) $('relClusterMeta').innerHTML = `Selected: Rev ${c.rev} • ${c.downloadDate} • ${pill(c.approvalStatus)}`;
-
-
-   const p = currentProject();
-   if (p && p.includeMda) {
-     const m = findRow(cacheMdaRows, $('relMdaTab').value);
-     if (m) $('relMdaMeta').innerHTML = `Selected: Rev ${m.rev} • ${m.downloadDate} • ${pill(m.approvalStatus)}`;
-   }
- }
-
-
- function inferMdaKey(s){
-   s = String(s||'').toUpperCase();
-   if (s.includes('STARLINE')) return 'ST';
-   if (s.includes('EI') || s.includes('E&I')) return 'EI';
-   return '';
- }
- function inferClusterKey(s){
-   s = String(s||'').toUpperCase();
-   if (s.includes('MARDIX')) return 'MA';
-   if (s.includes('EAE')) return 'EA';
-   if (s.includes('EI') || s.includes('E&I')) return 'EI';
-   return '';
- }
-
-
- function updateBuswaySuggestions(){
-   const c = findRow(cacheClusterRows, $('relClusterTab').value);
-   if (c) {
-     $('relClusterBusway').textContent = `Busway Supplier: ${c.buswaySupplier || '(blank)'}`;
-     const suggested = inferClusterKey(c.buswaySupplier);
-     if (suggested) $('relClusterCode').value = suggested;
-   }
-
-
-   const p = currentProject();
-   if (p && p.includeMda) {
-     const m = findRow(cacheMdaRows, $('relMdaTab').value);
-     if (m) {
-       $('relMdaBusway').textContent = `Busway Supplier: ${m.buswaySupplier || '(blank)'}`;
-       const suggested = inferMdaKey(m.buswaySupplier);
-       if (suggested) $('relMdaCode').value = suggested;
-     }
-   }
- }
-
-
- async function updateControlledReleaseMsg(){
-   const p = currentProject();
-   if (!p) return;
-
-
-   let ok = true;
-   let reasons = [];
-
-
-   if (BOOT.config.requireApprovedForm && !BOOT.dashboard.latestApprovedForm) {
-     ok = false;
-     reasons.push('No APPROVED Form selected.');
-   }
-
-
-   if (BOOT.config.requireApprovedAgile) {
-     const c = findRow(cacheClusterRows, $('relClusterTab').value);
-     if (!c || String(c.approvalStatus).toUpperCase() !== 'APPROVED') { ok = false; reasons.push('Cluster Agile not approved.'); }
-     if (p.includeMda) {
-       const m = findRow(cacheMdaRows, $('relMdaTab').value);
-       if (!m || String(m.approvalStatus).toUpperCase() !== 'APPROVED') { ok = false; reasons.push('MDA Agile not approved.'); }
-     }
-   }
-
-
-   $('btnScheduleReleased').disabled = !ok;
-   $('relControlMsg').textContent = ok ? 'Ready to schedule.' : ('Blocked: ' + reasons.join(' '));
- }
-
-
- function renderProjectTree(data){
-   if (!data) { $('projectTree').innerHTML = '<span class="mono">No data.</span>'; return; }
-
-
-   const agileTable = (rows) => {
-     if (!rows || !rows.length) return '<span class="mono">—</span>';
-     return `
-       <table class="table">
-         <thead><tr><th>Rev</th><th>Date</th><th>Tab</th><th>Busway</th><th>Approval</th><th>ECO</th></tr></thead>
-         <tbody>
-           ${rows.map(r => `
-             <tr>
-               <td class="mono">${r.rev}</td>
-               <td class="mono">${r.downloadDate}</td>
-               <td class="mono">${r.tabName}</td>
-               <td class="mono">${r.buswaySupplier || ''}</td>
-               <td>${pill(r.approvalStatus)}</td>
-               <td class="mono">${r.eco || ''}</td>
-             </tr>`).join('')}
-         </tbody>
-       </table>`;
-   };
-
-
-   const releasedTable = (rows) => {
-     if (!rows || !rows.length) return '<span class="mono">—</span>';
-     return `
-       <table class="table">
-         <thead><tr><th>Rev</th><th>Status</th><th>File</th><th>ClusterTab</th><th>MDATab</th><th>Created</th></tr></thead>
-         <tbody>
-           ${rows.map(r => `
-             <tr>
-               <td class="mono">${r.mbomRev}</td>
-               <td>${pill(r.status)}</td>
-               <td>${fileLink(r.url,'Open')}</td>
-               <td class="mono">${r.agileTabCluster || ''}</td>
-               <td class="mono">${r.agileTabMDA || ''}</td>
-               <td class="mono">${fmtDate(r.createdAt)}</td>
-             </tr>`).join('')}
-         </tbody>
-       </table>`;
-   };
-
-
-   $('projectTree').innerHTML = `
-     <div class="banner">
-       Project: <b>${data.projectKey}</b> • Site: <b>${data.site}</b> • ClusterGroup: <b>${data.clusterGroup}</b> • Include MDA: <b>${data.includeMda ? 'YES' : 'NO'}</b>
-     </div>
-
-
-     <details open>
-       <summary class="mono">Agile Cluster history</summary>
-       ${agileTable(data.clusterAgile || [])}
-     </details>
-
-
-     ${data.includeMda ? `
-     <details open style="margin-top:10px;">
-       <summary class="mono">Agile MDA history</summary>
-       ${agileTable(data.mdaAgile || [])}
-     </details>` : ''}
-
-
-     <details open style="margin-top:10px;">
-       <summary class="mono">RELEASED history</summary>
-       ${releasedTable(data.released || [])}
-     </details>
-   `;
- }
-
-
- function renderNotifTable(){
-   renderNotif(BOOT.notifications.settings || [], BOOT.notifications.status || {});
- }
-
-
- async function bootstrap() {
- try {
-   // Phase 1: fast bootstrap
-   const boot = await run('Loading app…', 'api_bootstrap');
-   if (!boot || typeof boot !== 'object') throw new Error('api_bootstrap returned empty/invalid response.');
-
-
-   BOOT = BOOT || {};
-   BOOT.user = boot.user;
-   BOOT.webAppUrl = boot.webAppUrl;
-   BOOT.config = boot.config;
-   BOOT.indexState = boot.indexState;
-   BOOT.jobs = { summary: boot.jobsSummary?.summary || {}, runningJob: boot.jobsSummary?.runningJob || null, recent: [] };
-
-
-   $('sub').textContent =
-     `User: ${BOOT.user || '(unknown)'} • Require Form: ${BOOT.config?.requireApprovedForm} • Require Agile: ${BOOT.config?.requireApprovedAgile}`;
-
-
-   setLogo($('logoCompany'), BOOT.config?.companyLogoUrl || '');
-   setLogo($('logoCustomer'), BOOT.config?.customerLogoUrl || '');
-
-
-   // Minimal rendering to avoid blank screen
-   if (typeof renderJobsTop === 'function') renderJobsTop();
-
-
-   // Phase 2: load heavy data
-   const data = await run('Loading data…', 'api_loadData', {
-     jobsLimit: 30,
-     limitForms: 200,
-     limitReleases: 200,
-     limitAgileLatest: 300
-   });
-
-
-   if (!data || typeof data !== 'object') {
-     throw new Error('api_loadData returned empty/invalid response (null/undefined).');
-   }
-
-
-   if (data.ok === false) {
-     // Surface server diagnostics
-     console.error('[mBOM] api_loadData server error:', data.error, data.stack, data.__diag);
-     throw new Error(`api_loadData failed on server: ${data.error}`);
-   }
-
-
-   // Optional: log diag to console
-   console.log('[mBOM] api_loadData diag:', data.__diag);
-
-
-
-
-   // Merge into BOOT
-   BOOT.configList = data.configList || [];
-   BOOT.dashboard = data.dashboard || { projects: [], agileLatest: [] };
-   BOOT.forms = data.forms || [];
-   BOOT.releases = data.releases || [];
-   BOOT.jobs = data.jobs || BOOT.jobs;
-   BOOT.notifications = data.notifications || { status: {}, settings: [] };
-
-
-   // Render full UI
-   renderJobsTop();
-   renderJobsTable(BOOT.jobs.recent || []);
-   scheduleJobsPolling();
-
-
-   renderProjects(BOOT.dashboard.projects || []);
-   renderForms(BOOT.forms || []);
-   renderAgileLatest(BOOT.dashboard.agileLatest || []);
-   renderApprovals();
-   renderConfig(BOOT.configList || []);
-   if (typeof renderNotifTable === 'function') renderNotifTable();
-
-
-   populateProjectsDropdown(BOOT.dashboard.projects || []);
-   await refreshReleaseSelectors();
-
-
- } catch (e) {
-   setBusy(false, '');
-   $('sub').textContent = 'Error during loading.';
-   alert(`Startup failed: ${e.message || e}`);
-   console.error(e);
- }
+  let BOOT = null;
+  let cacheClusterRows = [];
+  let cacheMdaRows = [];
+  let jobsPollTimer = null;
+
+  function $(id){ return document.getElementById(id); }
+
+  function setLogo(imgEl, url){
+    const u = (url || '').trim();
+    if (!u) { imgEl.style.display='none'; imgEl.src=''; return; }
+    imgEl.src = u;
+    imgEl.style.display = 'block';
+  }
+
+  function setBusy(on, label){
+    $('spinner').style.display = on ? 'block' : 'none';
+    $('opLine').style.display = on ? 'block' : 'none';
+    $('opLabel').textContent = on ? (label || 'Working…') : 'Idle';
+  }
+
+  function call(fn, payload) {
+    return new Promise((resolve, reject) => {
+      google.script.run.withSuccessHandler(resolve).withFailureHandler(err => reject(err))[fn](payload);
+    });
+  }
+
+  async function run(label, fn, payload){
+    const DEBUG = (window.MBOM_DEBUG === true) || (localStorage.getItem('MBOM_DEBUG') === '1');
+    const t0 = performance.now();
+
+    if (DEBUG) {
+      console.group(`[mBOM] CALL ${fn}`);
+      console.log('label:', label);
+      console.log('payload:', payload);
+    }
+
+    setBusy(true, label);
+
+    try{
+      const res = await call(fn, payload);
+
+      if (DEBUG) {
+        const dt = Math.round(performance.now() - t0);
+        console.log('duration_ms:', dt);
+        console.log('result_type:', typeof res);
+        console.log('result:', res);
+
+        // Best-effort size
+        try {
+          const s = JSON.stringify(res);
+          console.log('result_json_length:', s.length);
+        } catch(e) {
+          console.log('result_json_length: (failed stringify)', e);
+        }
+        console.groupEnd();
+      }
+
+      return res;
+    } catch(err){
+      if (DEBUG) {
+        console.error(`[mBOM] CALL FAILED ${fn}`, err);
+        console.groupEnd();
+      }
+      throw err;
+    } finally {
+      setBusy(false, '');
+    }
+  }
+
+
+  function pill(status){
+    const s = String(status||'').toUpperCase();
+    if (s === 'APPROVED') return '<span class="pill ok">APPROVED</span>';
+    if (s === 'REJECTED') return '<span class="pill bad">REJECTED</span>';
+    if (s === 'CURRENT') return '<span class="pill blue">CURRENT</span>';
+    if (!s) return '<span class="pill warn">UNSET</span>';
+    return `<span class="pill warn">${s}</span>`;
+  }
+
+  function fileLink(url, label){
+    if (!url) return '<span class="mono">—</span>';
+    return `<a href="${url}" target="_blank">${label || 'Open'}</a>`;
+  }
+
+  function fmtDate(iso){
+    if (!iso) return '';
+    try{
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return String(iso);
+      return d.toLocaleString();
+    }catch(e){ return String(iso); }
+  }
+
+  // Tabs navigation
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const page = t.dataset.page;
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      $('page-' + page).classList.add('active');
+    });
+  });
+
+  // Dashboard subtabs
+  document.querySelectorAll('.subtab').forEach(st => {
+    st.addEventListener('click', () => {
+      document.querySelectorAll('.subtab').forEach(x => x.classList.remove('active'));
+      st.classList.add('active');
+
+      const sub = st.dataset.sub;
+      $('dash-projects').style.display = (sub === 'projects') ? '' : 'none';
+      $('dash-forms').style.display = (sub === 'forms') ? '' : 'none';
+      $('dash-agile').style.display = (sub === 'agile') ? '' : 'none';
+      $('dash-approvals').style.display = (sub === 'approvals') ? '' : 'none';
+    });
+  });
+
+  $('btnRefreshAgile').addEventListener('click', async () => {
+    try {
+      await run('Refreshing Agile Index…', 'api_refreshAgileIndex');
+      await bootstrap();
+    } catch(e){
+      alert('Agile refresh failed: ' + (e.message || e));
+    }
+  });
+
+  $('btnFullscreen').addEventListener('click', async () => {
+    try{
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch(e){
+      if (BOOT && BOOT.webAppUrl) window.open(BOOT.webAppUrl, '_blank');
+      else alert('Fullscreen may be blocked in this window. Deploy as Web App to open in full tab.');
+    }
+  });
+
+  $('btnReloadAll').addEventListener('click', bootstrap);
+
+  $('btnRefreshFiles').addEventListener('click', async () => {
+    try{
+      const res = await run('Refreshing Files Index…', 'api_refreshFilesIndex');
+      alert(`Files indexed. Inserted: ${res.inserted}, Updated: ${res.updated}`);
+      await bootstrap();
+    } catch(e){
+      alert('Files refresh failed: ' + (e.message || e));
+    }
+  });
+
+  // Create Form -> schedule
+  $('btnScheduleForm').addEventListener('click', async () => {
+    const out = $('formOut');
+    out.style.display='block';
+    out.textContent = 'Scheduling…';
+    try{
+      const payload = {
+        baseFormFileId: $('formBaseId').value.trim(),
+        newFormRev: Number($('formNewRev').value.trim()),
+        ecrActRef: $('formChangeRef').value.trim(),
+        affectedItems: $('formAffected').value.trim(),
+        description: $('formDesc').value.trim()
+      };
+      const res = await run('Scheduling Form copy…', 'api_scheduleFormRevision', payload);
+      out.innerHTML = `Scheduled Job: <span class="mono">${res.jobId}</span>. Track it in “Copy Monitoring”.`;
+      await bootstrap();
+      switchTo('monitoring');
+    } catch(e){
+      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+    }
+  });
+
+  // Create Released -> schedule
+  $('btnScheduleReleased').addEventListener('click', async () => {
+    const out = $('relOut');
+    out.style.display='block';
+    out.textContent = 'Scheduling…';
+    try{
+      const p = currentProject();
+      if (!p) throw new Error('Invalid project selection');
+
+      const includeMda = !!p.includeMda;
+
+      const payload = {
+        projectKey: p.projectKey,
+        includeMda,
+        freezeAgileInputs: $('relFreeze').value === 'true',
+        agileTabCluster: $('relClusterTab').value,
+        agileTabMDA: includeMda ? $('relMdaTab').value : '',
+        buswayClusterCode: $('relClusterCode').value,
+        buswayMdaCode: includeMda ? $('relMdaCode').value : '',
+        eco: $('relEco').value.trim(),
+        affectedItems: $('relAffected').value.trim(),
+        description: $('relDesc').value.trim()
+      };
+
+      const res = await run('Scheduling RELEASED copy…', 'api_scheduleReleasedForProject', payload);
+      out.innerHTML = `Scheduled Job: <span class="mono">${res.jobId}</span>. Track it in “Copy Monitoring”.`;
+      await bootstrap();
+      switchTo('monitoring');
+    } catch(e){
+      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+    }
+  });
+
+  // Import
+  $('btnImport').addEventListener('click', async () => {
+    const out = $('importOut');
+    out.style.display='block';
+    out.textContent = 'Importing…';
+    try{
+      const res = await run('Importing files…', 'api_importReleased', { text: $('importText').value });
+      out.innerHTML = `<div class="mono">Imported: ${res.imported} • Skipped: ${res.skipped} • Errors: ${res.errors.length}</div>
+        <div class="mono">${(res.errors||[]).slice(0,10).map(e=>`• ${e}`).join('<br>')}</div>`;
+      await bootstrap();
+    } catch(e){
+      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+    }
+  });
+
+  // Notifications save
+  $('btnSaveNotif').addEventListener('click', async () => {
+    const out = $('notifOut');
+    out.style.display='block';
+    out.textContent = 'Saving…';
+    try{
+      const updates = {};
+      $('tblNotif').querySelectorAll('input[data-key]').forEach(inp => updates[inp.dataset.key] = inp.value);
+      const res = await run('Saving notifications…', 'api_updateNotifSettings', { updates });
+      out.innerHTML = `Saved. Updated keys: ${res.updated}`;
+      await bootstrap();
+    } catch(e){
+      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+    }
+  });
+
+  // Settings save
+  $('btnSaveConfig').addEventListener('click', async () => {
+    const out = $('cfgOut');
+    out.style.display='block';
+    out.textContent = 'Saving…';
+    try{
+      const updates = {};
+      $('tblConfig').querySelectorAll('input[data-key]').forEach(inp => updates[inp.dataset.key] = inp.value);
+      const res = await run('Saving configuration…', 'api_updateConfig', { updates });
+      out.innerHTML = `Saved. Updated keys: ${res.updated}`;
+      await bootstrap();
+    } catch(e){
+      out.innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+    }
+  });
+
+  // Monitoring refresh
+  $('btnRefreshJobs').addEventListener('click', refreshJobs);
+
+  // Approvals filter
+  $('chkPendingOnly').addEventListener('change', () => renderApprovals());
+
+  // Project Data
+  $('btnLoadProjectData').addEventListener('click', async () => {
+    const pk = $('pdProject').value;
+    $('projectTree').innerHTML = '<div class="mono">Loading…</div>';
+    try{
+      const res = await run('Loading project data…', 'api_getProjectData', { projectKey: pk });
+      if (!res || !res.data) throw new Error('api_getProjectData returned empty/invalid response.');
+      renderProjectTree(res.data);
+    } catch(e){
+      $('projectTree').innerHTML = `<span style="color:var(--red)">Error:</span> ${e.message || e}`;
+    }
+  });
+
+
+  // Batch selection controls
+  $('btnClearSelection').addEventListener('click', () => {
+    document.querySelectorAll('input[data-projchk]').forEach(c => c.checked = false);
+  });
+
+  $('btnSelectEligible').addEventListener('click', () => {
+    const projects = BOOT.dashboard.projects || [];
+    projects.forEach(p => {
+      const ok = computeEligibility(p);
+      const el = document.querySelector(`input[data-projchk="${p.projectKey}"]`);
+      if (el) el.checked = ok;
+    });
+  });
+
+  $('btnScheduleSelected').addEventListener('click', async () => {
+    try{
+      const selected = Array.from(document.querySelectorAll('input[data-projchk]:checked')).map(x => x.dataset.projchk);
+      if (!selected.length) return alert('No projects selected.');
+
+      const res = await run('Scheduling batch RELEASED…', 'api_scheduleReleasedForSelected', {
+        projectKeys: selected,
+        onlyEligible: false,
+        freezeAgileInputs: (BOOT.config.freezeDefault === true),
+        batchSize: 3,
+        description: 'Batch RELEASED creation (selected projects)'
+      });
+
+      alert(`Scheduled Job: ${res.jobId}`);
+      await bootstrap();
+      switchTo('monitoring');
+    } catch(e){
+      alert('Batch schedule failed: ' + (e.message || e));
+    }
+  });
+
+  $('btnScheduleAllEligible').addEventListener('click', async () => {
+    try{
+      const res = await run('Scheduling ALL eligible RELEASED…', 'api_scheduleReleasedForAll', {
+        onlyEligible: true,
+        freezeAgileInputs: (BOOT.config.freezeDefault === true),
+        batchSize: 3,
+        description: 'Batch RELEASED creation (all eligible approved projects)'
+      });
+      alert(`Scheduled Job: ${res.jobId}`);
+      await bootstrap();
+      switchTo('monitoring');
+    } catch(e){
+      alert('Schedule failed: ' + (e.message || e));
+    }
+  });
+
+  // Create RELEASED selectors
+  $('relProject').addEventListener('change', refreshReleaseSelectors);
+  $('relClusterTab').addEventListener('change', async () => { updateAgileMeta(); updateBuswaySuggestions(); await updateControlledReleaseMsg(); });
+  $('relMdaTab').addEventListener('change', async () => { updateAgileMeta(); updateBuswaySuggestions(); await updateControlledReleaseMsg(); });
+
+  function switchTo(page){
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelector(`.tab[data-page="${page}"]`).classList.add('active');
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    $('page-' + page).classList.add('active');
+  }
+
+  function currentProject(){
+    const pk = $('relProject').value;
+    return (BOOT.dashboard.projects || []).find(x => x.projectKey === pk) || null;
+  }
+
+  function computeEligibility(p){
+    // Client-side visibility. Server still enforces.
+    if (BOOT.config.requireApprovedForm && !BOOT.dashboard.latestApprovedForm) return false;
+    if (BOOT.config.requireApprovedAgile) {
+      if (String(p.clusterApproval||'').toUpperCase() !== 'APPROVED') return false;
+      if (p.includeMda && String(p.mdaApproval||'').toUpperCase() !== 'APPROVED') return false;
+    }
+    return true;
+  }
+
+  function renderJobsTop(){
+    const s = BOOT.jobs.summary;
+    $('jobsSummary').textContent = `Queued: ${s.queued} • Running: ${s.running} • Done: ${s.done} • Done(w/Errors): ${s.doneWithErrors} • Error: ${s.error}`;
+
+    const running = BOOT.jobs.runningJob;
+    if (!running) {
+      $('jobsRunning').innerHTML = '<span class="mono">No running job.</span>';
+      return;
+    }
+
+    const pct = running.progressTotal ? Math.round((running.progressCurrent / running.progressTotal) * 100) : 0;
+
+    $('jobsRunning').innerHTML = `
+      <div class="mono">Running: ${running.type} • ${running.status} • ${running.progressCurrent}/${running.progressTotal} • ${running.message}</div>
+      <div class="bar" style="margin-top:6px;"><div style="width:${pct}%;"></div></div>
+    `;
+  }
+
+  async function refreshJobs(){
+    const res = await call('api_listJobs', { limit: 50, activeOnly: false });
+    renderJobsTable(res.jobs || []);
+    // also refresh header card without full bootstrap
+    BOOT.jobs.summary = res.summary.summary;
+    BOOT.jobs.runningJob = res.summary.runningJob;
+    renderJobsTop();
+  }
+
+  function renderJobsTable(jobs){
+  const tbody = $('tblJobs').querySelector('tbody');
+  tbody.innerHTML = '';
+  $('jobsHint').textContent = 'Jobs run sequentially. Status updates as background triggers execute.';
+
+  jobs.forEach(j => {
+    const pct = j.progressTotal ? Math.round((j.progressCurrent / j.progressTotal) * 100) : 0;
+    const resultsHtml = (j.results || []).map(r => {
+      if (r.url && r.name) return `<div class="mono">${fileLink(r.url, r.name)}</div>`;
+      if (r.url) return `<div class="mono">${fileLink(r.url, 'Open')}</div>`;
+      if (r.projectKey && r.url) return `<div class="mono">${r.projectKey}: ${fileLink(r.url,'Open')}</div>`;
+      return `<div class="mono">${JSON.stringify(r)}</div>`;
+    }).join('');
+
+    const errorsHtml = (j.errors || []).map(e => `<div class="mono" style="color:var(--red)">• ${(e.projectKey? (e.projectKey + ': ') : '')}${e.error}</div>`).join('');
+    const actionsHtml = (['ERROR','DONE_WITH_ERRORS'].includes(String(j.status || '').toUpperCase()))
+      ? `<button class="btn" data-act="retryJob" data-id="${j.id}">Retry</button>`
+      : '<span class="mono">—</span>';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${fmtDate(j.createdAt)}</td>
+      <td class="mono">${j.type}</td>
+      <td>${pill(j.status)}</td>
+      <td>
+        <div class="mono">${j.progressCurrent}/${j.progressTotal} (${pct}%)</div>
+        <div class="bar"><div style="width:${pct}%;"></div></div>
+      </td>
+      <td class="mono">${j.message || ''}</td>
+      <td>${resultsHtml || '<span class="mono">—</span>'}</td>
+      <td>${errorsHtml || '<span class="mono">—</span>'}</td>
+      <td>${actionsHtml}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('button[data-act="retryJob"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try{
+        await run('Retrying job…', 'api_retryJob', { jobId: btn.dataset.id });
+        await refreshJobs();
+      } catch(e){
+        alert('Retry failed: ' + (e.message || e));
+      }
+    });
+  });
 }
 
 
+  function renderProjects(projects){
+    const tbody = $('tblProjects').querySelector('tbody');
+    tbody.innerHTML = '';
+
+    $('projectsHint').textContent =
+      'Select projects to schedule batch RELEASED. Eligibility depends on approvals and Settings (Require Approved Form/Agile).';
+
+    projects.forEach(p => {
+      const eligible = computeEligibility(p);
+      const rel = p.latestReleased;
+      const relCell = rel ? `${fileLink(rel.url, `Rev ${rel.mbomRev}`)}<div class="mono">${rel.status || ''}</div>` : '<span class="mono">—</span>';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="checkbox" data-projchk="${p.projectKey}"></td>
+        <td><span class="pill ok">${p.projectKey}</span></td>
+        <td class="mono">${p.site}</td>
+        <td>
+          <select data-act="clusterGroup" data-project="${p.projectKey}">
+            ${[1,2,3,4,5,6,7,8,9].map(n => `<option value="${n}" ${Number(p.clusterGroup)===n?'selected':''}>${n}</option>`).join('')}
+          </select>
+        </td>
+        <td>${p.includeMda ? '<span class="pill ok">YES</span>' : '<span class="pill warn">NO</span>'}</td>
+        <td class="mono">Rev ${p.clusterRev || ''} • ${p.clusterTab || ''}<br>${pill(p.clusterApproval)}</td>
+        <td class="mono">${p.includeMda ? `Rev ${p.mdaRev || ''} • ${p.mdaTab || ''}<br>${pill(p.mdaApproval)}` : 'Hidden (not required)'}</td>
+        <td>${relCell}</td>
+        <td>${eligible ? '<span class="pill ok">Eligible</span>' : '<span class="pill warn">Blocked</span>'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('select[data-act="clusterGroup"]').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        try{
+          await run('Updating ClusterGroup…', 'api_setProjectClusterGroup', { projectKey: sel.dataset.project, clusterGroup: Number(sel.value) });
+          await bootstrap();
+        } catch(e){
+          alert('ClusterGroup update failed: ' + (e.message || e));
+        }
+      });
+    });
+  }
+
+  function renderForms(forms){
+    const tbody = $('tblForms').querySelector('tbody');
+    tbody.innerHTML = '';
+
+    const currentId = (BOOT.config.currentApprovedFormFileId || '').trim();
+
+    forms.sort((a,b) => Number(b.mbomRev||0) - Number(a.mbomRev||0));
+    forms.forEach(f => {
+      const isCurrent = currentId && (String(f.fileId).trim() === currentId);
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${f.mbomRev || ''}</td>
+        <td>
+          <select data-act="setStatus" data-file="${f.fileId}">
+            ${['DRAFT','APPROVED','OBSOLETE'].map(s => `<option value="${s}" ${String(f.status||'').toUpperCase()===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </td>
+        <td>${isCurrent ? pill('CURRENT') : '<span class="mono">—</span>'}</td>
+        <td>${fileLink(f.url,'Open')}</td>
+        <td class="mono">${fmtDate(f.createdAt)}</td>
+        <td class="mono">${f.eco || ''}</td>
+        <td>
+          ${isCurrent
+            ? '<span class="mono">Current Approved</span>'
+            : `<button class="btn primary" data-act="setCurrentApproved" data-file="${f.fileId}">Set Current</button>`
+          }
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('select[data-act="setStatus"]').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        try { await run('Updating status…','api_setFileStatus',{ fileId: sel.dataset.file, status: sel.value }); await bootstrap(); }
+        catch(e){ alert('Status update failed: ' + (e.message || e)); }
+      });
+    });
+
+    tbody.querySelectorAll('button[data-act="setCurrentApproved"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try{
+          await run('Setting current approved…','api_setApprovedFormFileId', btn.dataset.file);
+          await bootstrap();
+        } catch(e){
+          alert('Update failed: ' + (e.message || e));
+        }
+      });
+    });
+  }
+
+  function renderAgileLatest(rows){
+    const tbody = $('tblAgileLatest').querySelector('tbody');
+    tbody.innerHTML = '';
+    $('agileHint').textContent = 'Approve latest Agile tabs to enable controlled RELEASED creation.';
+
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${r.site}</td>
+        <td class="mono">${r.partNorm}</td>
+        <td class="mono">${r.rev}</td>
+        <td class="mono">${r.downloadDate}</td>
+        <td class="mono">${r.tabName}</td>
+        <td class="mono">${r.buswaySupplier || ''}</td>
+        <td>${pill(r.approvalStatus)}</td>
+        <td>
+          <button class="btn" data-act="approveAgile" data-tab="${r.tabName}">Approve</button>
+          <button class="btn danger" data-act="rejectAgile" data-tab="${r.tabName}">Reject</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('button[data-act="approveAgile"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const notes = prompt(`Approve Agile Tab:\n${btn.dataset.tab}\n\nNotes (optional):`, '') || '';
+        try{ await run('Approving Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'APPROVED', notes }); await bootstrap(); }
+        catch(e){ alert('Approval failed: ' + (e.message || e)); }
+      });
+    });
+
+    tbody.querySelectorAll('button[data-act="rejectAgile"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const notes = prompt(`Reject Agile Tab:\n${btn.dataset.tab}\n\nReason:`, '') || '';
+        try{ await run('Rejecting Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'REJECTED', notes }); await bootstrap(); }
+        catch(e){ alert('Rejection failed: ' + (e.message || e)); }
+      });
+    });
+  }
+
+  function renderApprovals(){
+    const pendingOnly = $('chkPendingOnly').checked;
+
+    // Agile approvals
+    const tbodyA = $('tblPendingAgile').querySelector('tbody');
+    tbodyA.innerHTML = '';
+
+    const agile = BOOT.dashboard.agileLatest || [];
+    const agileRows = pendingOnly ? agile.filter(x => String(x.approvalStatus).toUpperCase() !== 'APPROVED') : agile;
+
+    agileRows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${r.site}</td>
+        <td class="mono">${r.partNorm}</td>
+        <td class="mono">${r.rev}</td>
+        <td class="mono">${r.downloadDate}</td>
+        <td class="mono">${r.tabName}</td>
+        <td class="mono">${r.buswaySupplier || ''}</td>
+        <td>${pill(r.approvalStatus)}</td>
+        <td><button class="btn" data-tab="${r.tabName}">Approve</button></td>
+      `;
+      tbodyA.appendChild(tr);
+    });
+
+    tbodyA.querySelectorAll('button[data-tab]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const notes = prompt(`Approve Agile Tab:\n${btn.dataset.tab}\n\nNotes (optional):`, '') || '';
+        try{ await run('Approving Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'APPROVED', notes }); await bootstrap(); }
+        catch(e){ alert('Approval failed: ' + (e.message || e)); }
+      });
+    });
+
+    // Form approvals
+    const tbodyF = $('tblPendingForms').querySelector('tbody');
+    tbodyF.innerHTML = '';
+
+    const forms = pendingOnly
+      ? (BOOT.forms || []).filter(f => String(f.status||'').toUpperCase() !== 'APPROVED')
+      : (BOOT.forms || []);
+
+    forms.sort((a,b)=>Number(b.mbomRev||0)-Number(a.mbomRev||0));
+    forms.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${f.mbomRev}</td>
+        <td>${pill(f.status)}</td>
+        <td>${fileLink(f.url,'Open')}</td>
+        <td class="mono">${fmtDate(f.createdAt)}</td>
+        <td class="mono">${f.eco || ''}</td>
+        <td><button class="btn primary" data-file="${f.fileId}">Mark APPROVED</button></td>
+      `;
+      tbodyF.appendChild(tr);
+    });
+
+    tbodyF.querySelectorAll('button[data-file]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try{
+          await run('Approving Form…','api_setFileStatus',{ fileId: btn.dataset.file, status:'APPROVED' });
+          await bootstrap();
+        } catch(e){
+          alert('Form approval failed: ' + (e.message || e));
+        }
+      });
+    });
+  }
+
+  function renderConfig(rows){
+    const tbody = $('tblConfig').querySelector('tbody');
+    tbody.innerHTML = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="mono">${r.key}</td><td><input data-key="${r.key}" value="${String(r.value||'').replaceAll('"','&quot;')}"></td>`;
+      tbody.appendChild(tr);
+    });
+
+    $('settingsHint').innerHTML =
+      `Web App URL: <span class="mono">${BOOT.webAppUrl || '(not deployed)'}</span><br>
+       Logos: set COMPANY_LOGO_URL and CUSTOMER_LOGO_URL in CONFIG.`;
+  }
+
+  function renderNotif(rows, status){
+    const tbody = $('tblNotif').querySelector('tbody');
+    tbody.innerHTML = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${r.key}</td>
+        <td><input data-key="${r.key}" value="${String(r.value||'').replaceAll('"','&quot;')}"></td>
+        <td class="mono">${r.desc || ''}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    $('notifStatus').textContent =
+      `RELEASED queue: ${status.releasedQueueCount} • last sent: ${status.releasedLastSentAt || '—'} • next scheduled: ${status.releasedNextSendAt || '—'}`;
+  }
+
+  // Create RELEASED page: populate + enforce eligibility + hide MDA when not required
+  function populateProjectsDropdown(projects){
+    $('relProject').innerHTML = '';
+    $('pdProject').innerHTML = '';
+    projects.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.projectKey;
+      opt.textContent = p.projectKey;
+      $('relProject').appendChild(opt);
+
+      const opt2 = document.createElement('option');
+      opt2.value = p.projectKey;
+      opt2.textContent = p.projectKey;
+      $('pdProject').appendChild(opt2);
+    });
+  }
+
+  async function refreshReleaseSelectors(){
+    const p = currentProject();
+    if (!p) return;
+
+    $('relClusterGroup').value = String(p.clusterGroup || '');
+    $('relProjectMeta').textContent = `Site: ${p.site} • Include MDA: ${p.includeMda ? 'YES' : 'NO'}`;
+
+    // Hide MDA blocks entirely when not required (ClusterGroup != 1)
+    $('mdaBlock').style.display = p.includeMda ? '' : 'none';
+    $('mdaBuswayBlock').style.display = p.includeMda ? '' : 'none';
+
+    const clusterPart = `Zone ${p.zone}`;
+    const clusterRes = await call('api_listAgileTabs', { site: p.site, part: clusterPart });
+    cacheClusterRows = (clusterRes && Array.isArray(clusterRes.rows)) ? clusterRes.rows : [];
+    fillAgileSelect($('relClusterTab'), cacheClusterRows, p.clusterTab);
+
+    if (p.includeMda) {
+      const mdaRes = await call('api_listAgileTabs', { site: p.site, part: 'MDA' });
+      cacheMdaRows = (mdaRes && Array.isArray(mdaRes.rows)) ? mdaRes.rows : [];
+      fillAgileSelect($('relMdaTab'), cacheMdaRows, p.mdaTab);
+    } else {
+      cacheMdaRows = [];
+      $('relMdaTab').innerHTML = '';
+      $('relMdaMeta').textContent = '';
+      $('relMdaBusway').textContent = '';
+      $('relMdaCode').value = '';
+    }
+
+    updateAgileMeta();
+    updateBuswaySuggestions();
+    await updateControlledReleaseMsg();
+  }
 
 
- // Helper for safe error rendering
- function escapeHtml(s){
-   return String(s||'')
-     .replaceAll('&','&amp;')
-     .replaceAll('<','&lt;')
-     .replaceAll('>','&gt;')
-     .replaceAll('"','&quot;')
-     .replaceAll("'","&#039;");
- }
+  function fillAgileSelect(selectEl, rows, preferredTab){
+    selectEl.innerHTML = '';
+    rows.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.tabName;
+      opt.textContent = `Rev ${r.rev} • ${r.downloadDate} • ${r.tabName} • ${r.approvalStatus}`;
+      if (preferredTab && r.tabName === preferredTab) opt.selected = true;
+      selectEl.appendChild(opt);
+    });
+    if (!selectEl.value && rows.length) selectEl.value = rows[0].tabName;
+  }
+
+  function findRow(rows, tab){ return (rows||[]).find(r => r.tabName === tab) || null; }
+
+  function updateAgileMeta(){
+    const c = findRow(cacheClusterRows, $('relClusterTab').value);
+    if (c) $('relClusterMeta').innerHTML = `Selected: Rev ${c.rev} • ${c.downloadDate} • ${pill(c.approvalStatus)}`;
+
+    const p = currentProject();
+    if (p && p.includeMda) {
+      const m = findRow(cacheMdaRows, $('relMdaTab').value);
+      if (m) $('relMdaMeta').innerHTML = `Selected: Rev ${m.rev} • ${m.downloadDate} • ${pill(m.approvalStatus)}`;
+    }
+  }
+
+  function inferMdaKey(s){
+    s = String(s||'').toUpperCase();
+    if (s.includes('STARLINE')) return 'ST';
+    if (s.includes('EI') || s.includes('E&I')) return 'EI';
+    return '';
+  }
+  function inferClusterKey(s){
+    s = String(s||'').toUpperCase();
+    if (s.includes('MARDIX')) return 'MA';
+    if (s.includes('EAE')) return 'EA';
+    if (s.includes('EI') || s.includes('E&I')) return 'EI';
+    return '';
+  }
+
+  function updateBuswaySuggestions(){
+    const c = findRow(cacheClusterRows, $('relClusterTab').value);
+    if (c) {
+      $('relClusterBusway').textContent = `Busway Supplier: ${c.buswaySupplier || '(blank)'}`;
+      const suggested = inferClusterKey(c.buswaySupplier);
+      if (suggested) $('relClusterCode').value = suggested;
+    }
+
+    const p = currentProject();
+    if (p && p.includeMda) {
+      const m = findRow(cacheMdaRows, $('relMdaTab').value);
+      if (m) {
+        $('relMdaBusway').textContent = `Busway Supplier: ${m.buswaySupplier || '(blank)'}`;
+        const suggested = inferMdaKey(m.buswaySupplier);
+        if (suggested) $('relMdaCode').value = suggested;
+      }
+    }
+  }
+
+  async function updateControlledReleaseMsg(){
+    const p = currentProject();
+    if (!p) return;
+
+    let ok = true;
+    let reasons = [];
+
+    if (BOOT.config.requireApprovedForm && !BOOT.dashboard.latestApprovedForm) {
+      ok = false;
+      reasons.push('No APPROVED Form selected.');
+    }
+
+    if (BOOT.config.requireApprovedAgile) {
+      const c = findRow(cacheClusterRows, $('relClusterTab').value);
+      if (!c || String(c.approvalStatus).toUpperCase() !== 'APPROVED') { ok = false; reasons.push('Cluster Agile not approved.'); }
+      if (p.includeMda) {
+        const m = findRow(cacheMdaRows, $('relMdaTab').value);
+        if (!m || String(m.approvalStatus).toUpperCase() !== 'APPROVED') { ok = false; reasons.push('MDA Agile not approved.'); }
+      }
+    }
+
+    $('btnScheduleReleased').disabled = !ok;
+    $('relControlMsg').textContent = ok ? 'Ready to schedule.' : ('Blocked: ' + reasons.join(' '));
+  }
+
+  function renderProjectTree(data){
+    if (!data) { $('projectTree').innerHTML = '<span class="mono">No data.</span>'; return; }
+
+    const agileTable = (rows) => {
+      if (!rows || !rows.length) return '<span class="mono">—</span>';
+      return `
+        <table class="table">
+          <thead><tr><th>Rev</th><th>Date</th><th>Tab</th><th>Busway</th><th>Approval</th><th>ECO</th></tr></thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td class="mono">${r.rev}</td>
+                <td class="mono">${r.downloadDate}</td>
+                <td class="mono">${r.tabName}</td>
+                <td class="mono">${r.buswaySupplier || ''}</td>
+                <td>${pill(r.approvalStatus)}</td>
+                <td class="mono">${r.eco || ''}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    };
+
+    const releasedTable = (rows) => {
+      if (!rows || !rows.length) return '<span class="mono">—</span>';
+      return `
+        <table class="table">
+          <thead><tr><th>Rev</th><th>Status</th><th>File</th><th>ClusterTab</th><th>MDATab</th><th>Created</th></tr></thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td class="mono">${r.mbomRev}</td>
+                <td>${pill(r.status)}</td>
+                <td>${fileLink(r.url,'Open')}</td>
+                <td class="mono">${r.agileTabCluster || ''}</td>
+                <td class="mono">${r.agileTabMDA || ''}</td>
+                <td class="mono">${fmtDate(r.createdAt)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    };
+
+    $('projectTree').innerHTML = `
+      <div class="banner">
+        Project: <b>${data.projectKey}</b> • Site: <b>${data.site}</b> • ClusterGroup: <b>${data.clusterGroup}</b> • Include MDA: <b>${data.includeMda ? 'YES' : 'NO'}</b>
+      </div>
+
+      <details open>
+        <summary class="mono">Agile Cluster history</summary>
+        ${agileTable(data.clusterAgile || [])}
+      </details>
+
+      ${data.includeMda ? `
+      <details open style="margin-top:10px;">
+        <summary class="mono">Agile MDA history</summary>
+        ${agileTable(data.mdaAgile || [])}
+      </details>` : ''}
+
+      <details open style="margin-top:10px;">
+        <summary class="mono">RELEASED history</summary>
+        ${releasedTable(data.released || [])}
+      </details>
+    `;
+  }
+
+  function renderNotifTable(){
+    renderNotif(BOOT.notifications.settings || [], BOOT.notifications.status || {});
+  }
+
+  async function bootstrap() {
+  try {
+    // Phase 1: fast bootstrap
+    const boot = await run('Loading app…', 'api_bootstrap');
+    if (!boot || typeof boot !== 'object') throw new Error('api_bootstrap returned empty/invalid response.');
+
+    BOOT = BOOT || {};
+    BOOT.user = boot.user;
+    BOOT.webAppUrl = boot.webAppUrl;
+    BOOT.config = boot.config;
+    BOOT.indexState = boot.indexState;
+    BOOT.jobs = { summary: boot.jobsSummary?.summary || {}, runningJob: boot.jobsSummary?.runningJob || null, recent: [] };
+
+    $('sub').textContent =
+      `User: ${BOOT.user || '(unknown)'} • Require Form: ${BOOT.config?.requireApprovedForm} • Require Agile: ${BOOT.config?.requireApprovedAgile}`;
+
+    setLogo($('logoCompany'), BOOT.config?.companyLogoUrl || '');
+    setLogo($('logoCustomer'), BOOT.config?.customerLogoUrl || '');
+
+    // Minimal rendering to avoid blank screen
+    if (typeof renderJobsTop === 'function') renderJobsTop();
+
+    // Phase 2: load heavy data
+    const data = await run('Loading data…', 'api_loadData', {
+      jobsLimit: 30,
+      limitForms: 200,
+      limitReleases: 200,
+      limitAgileLatest: 300
+    });
+
+    if (!data || typeof data !== 'object') {
+      throw new Error('api_loadData returned empty/invalid response (null/undefined).');
+    }
+
+    if (data.ok === false) {
+      // Surface server diagnostics
+      console.error('[mBOM] api_loadData server error:', data.error, data.stack, data.__diag);
+      throw new Error(`api_loadData failed on server: ${data.error}`);
+    }
+
+    // Optional: log diag to console
+    console.log('[mBOM] api_loadData diag:', data.__diag);
+
+
+    // Merge into BOOT
+    BOOT.configList = data.configList || [];
+    BOOT.dashboard = data.dashboard || { projects: [], agileLatest: [] };
+    BOOT.forms = data.forms || [];
+    BOOT.releases = data.releases || [];
+    BOOT.jobs = data.jobs || BOOT.jobs;
+    BOOT.notifications = data.notifications || { status: {}, settings: [] };
+
+    // Render full UI
+    renderJobsTop();
+    renderJobsTable(BOOT.jobs.recent || []);
+    scheduleJobsPolling();
+
+    renderProjects(BOOT.dashboard.projects || []);
+    renderForms(BOOT.forms || []);
+    renderAgileLatest(BOOT.dashboard.agileLatest || []);
+    renderApprovals();
+    renderConfig(BOOT.configList || []);
+    if (typeof renderNotifTable === 'function') renderNotifTable();
+
+    populateProjectsDropdown(BOOT.dashboard.projects || []);
+    await refreshReleaseSelectors();
+
+  } catch (e) {
+    setBusy(false, '');
+    $('sub').textContent = 'Error during loading.';
+    alert(`Startup failed: ${e.message || e}`);
+    console.error(e);
+  }
+}
+
+
+  // Helper for safe error rendering
+  function escapeHtml(s){
+    return String(s||'')
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'","&#039;");
+  }
 
 
 
+  function scheduleJobsPolling(){
+    if (jobsPollTimer) clearInterval(jobsPollTimer);
+    jobsPollTimer = setInterval(async () => {
+      const auto = $('chkAutoJobs') ? $('chkAutoJobs').checked : true;
+      if (!auto) return;
 
+      // Poll only if there are running/queued jobs
+      const running = BOOT.jobs.summary.running;
+      const queued = BOOT.jobs.summary.queued;
+      if (running + queued <= 0) return;
 
+      try {
+        await refreshJobs();
+      } catch(e) {
+        // silent
+      }
+    }, 4000);
+  }
 
- function scheduleJobsPolling(){
-   if (jobsPollTimer) clearInterval(jobsPollTimer);
-   jobsPollTimer = setInterval(async () => {
-     const auto = $('chkAutoJobs') ? $('chkAutoJobs').checked : true;
-     if (!auto) return;
-
-
-     // Poll only if there are running/queued jobs
-     const running = BOOT.jobs.summary.running;
-     const queued = BOOT.jobs.summary.queued;
-     if (running + queued <= 0) return;
-
-
-     try {
-       await refreshJobs();
-     } catch(e) {
-       // silent
-     }
-   }, 4000);
- }
-
-
- bootstrap();
-
+  bootstrap();
 
 </script>
 </body>
 </html>
-
-
