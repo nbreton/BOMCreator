@@ -5,482 +5,593 @@
   <?!= include('style'); ?>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <img id="logoCompany" class="logo" alt="Company logo">
-      <div class="brandText">
-        <div class="title">VERDON mBOM App</div>
-        <div class="sub" id="sub">Loading…</div>
-      </div>
-    </div>
-
-    <div class="tabs">
-      <div class="tab active" data-page="dashboard">Dashboard</div>
-      <div class="tab" data-page="createForm">Create mBOM Form</div>
-      <div class="tab" data-page="createReleased">Create RELEASED</div>
-      <div class="tab" data-page="monitoring">Copy Monitoring</div>
-      <div class="tab" data-page="projectData">Project Data</div>
-      <div class="tab" data-page="notifications">Notifications</div>
-      <div class="tab" data-page="settings">Settings</div>
-      <div class="tab" data-page="diagnostics">Diagnostics</div>
-      <div class="tab" data-page="import">Import</div>
-      <div class="tab" data-page="readme">README</div>
-    </div>
-
-    <div class="actions">
-      <div class="actionsRow">
-        <div class="opStatus" title="Current operation">
-          <div id="spinner" class="spinner"></div>
-          <div id="opLabel">Idle</div>
+  <div class="appShell">
+    <header class="topbar">
+      <div class="brand">
+        <img id="logoCompany" class="logo" alt="Company logo">
+        <div class="brandText">
+          <div class="title">VERDON mBOM App</div>
+          <div class="sub" id="sub">Loading…</div>
         </div>
-        <button class="iconbtn" id="btnRefreshAgile" title="Refresh Agile Index">↻</button>
-        <button class="iconbtn" id="btnFullscreen" title="Fullscreen / Open Web App">⛶</button>
-        <img id="logoCustomer" class="logo" alt="Customer logo">
-      </div>
-      <div id="opLine" class="opLine"></div>
-    </div>
-  </header>
-
-  <div class="wrap">
-    <div id="statusBanner" class="statusBanner" style="display:none;"></div>
-    <!-- DASHBOARD -->
-    <section class="page active" id="page-dashboard">
-      <div class="card">
-        <h3>Copy Jobs (progress)</h3>
-        <div id="jobsSummary" class="mono"></div>
-        <div id="jobsRunning" style="margin-top:10px;"></div>
       </div>
 
-      <div class="subtabs">
-        <div class="subtab active" data-sub="projects">Projects</div>
-        <div class="subtab" data-sub="forms">Form Library</div>
-        <div class="subtab" data-sub="agile">Agile BOM</div>
-        <div class="subtab" data-sub="approvals">Approvals</div>
+      <div class="actions">
+        <div class="actionsRow">
+          <div class="opStatus" title="Current operation">
+            <div id="spinner" class="spinner"></div>
+            <div id="opLabel">Idle</div>
+          </div>
+          <button class="iconbtn" id="btnRefreshAgile" title="Refresh Agile Index">↻</button>
+          <button class="iconbtn" id="btnFullscreen" title="Fullscreen / Open Web App">⛶</button>
+          <img id="logoCustomer" class="logo" alt="Customer logo">
+        </div>
+        <div id="opLine" class="opLine"></div>
       </div>
+    </header>
 
-      <!-- Projects -->
-      <div class="card" id="dash-projects">
-        <h3>Projects (select to batch create RELEASED)</h3>
-
-        <div class="row">
-          <button class="btn" id="btnSelectEligible">Select eligible (approved)</button>
-          <button class="btn" id="btnClearSelection">Clear selection</button>
-          <button class="btn primary" id="btnScheduleSelected">Schedule RELEASED for selected</button>
-          <button class="btn" id="btnScheduleAllEligible">Schedule RELEASED for ALL eligible</button>
-          <span class="mono" id="batchHint"></span>
+    <div class="layout">
+      <nav class="sidenav">
+        <div class="navTitle">Navigation</div>
+        <div class="tabs">
+          <div class="tab active" data-page="dashboard">Dashboard</div>
+          <div class="tab" data-page="createForm">Create mBOM Form</div>
+          <div class="tab" data-page="createReleased">Create RELEASED</div>
+          <div class="tab" data-page="monitoring">Copy Monitoring</div>
+          <div class="tab" data-page="projectData">Project Data</div>
+          <div class="tab" data-page="notifications">Notifications</div>
+          <div class="tab" data-page="settings">Settings</div>
+          <div class="tab" data-page="diagnostics">Diagnostics</div>
+          <div class="tab" data-page="import">Import</div>
+          <div class="tab" data-page="readme">README</div>
         </div>
+      </nav>
 
-        <table class="table" id="tblProjects">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Project</th>
-              <th>Site</th>
-              <th>ClusterGroup</th>
-              <th>MDA required?</th>
-              <th>Cluster Agile</th>
-              <th>MDA Agile</th>
-              <th>Latest RELEASED</th>
-              <th>Eligibility</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <div class="toast mono" id="projectsHint"></div>
-      </div>
-
-      <!-- Forms -->
-      <div class="card" id="dash-forms" style="display:none;">
-        <h3>Form Library (ECR/ACT for Form revisions)</h3>
-        <div class="banner">
-          “Current Approved” is the Form file ID stored in CONFIG → CURRENT_APPROVED_FORM_FILE_ID.
-          If REQUIRE_APPROVED_FORM=TRUE, RELEASED creation is blocked unless that Form is marked APPROVED.
-        </div>
-        <table class="table" id="tblForms">
-          <thead>
-            <tr>
-              <th>Rev</th>
-              <th>Status</th>
-              <th>Current</th>
-              <th>File</th>
-              <th>Created</th>
-              <th>ECR/ACT Ref</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-
-      <!-- Agile -->
-      <div class="card" id="dash-agile" style="display:none;">
-        <h3>Agile BOM (latest per Site/Part)</h3>
-        <table class="table" id="tblAgileLatest">
-          <thead>
-            <tr>
-              <th>Site</th>
-              <th>Part</th>
-              <th>Rev</th>
-              <th>Date</th>
-              <th>Tab</th>
-              <th>Busway Supplier</th>
-              <th>Approval</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <div class="toast mono" id="agileHint"></div>
-      </div>
-
-      <!-- Approvals -->
-      <div class="card" id="dash-approvals" style="display:none;">
-        <h3>Approvals Queue</h3>
-        <div class="row">
-          <label style="margin:0;">
-            <input type="checkbox" id="chkPendingOnly" checked>
-            Show pending only
-          </label>
-        </div>
-
-        <div class="banner" style="margin-top:10px;">
-          Create RELEASED is disabled until required approvals are completed (Agile approvals, and Form approval if enforced).
-        </div>
-
-        <h3 style="margin-top:10px;">Agile approvals</h3>
-        <table class="table" id="tblPendingAgile">
-          <thead>
-            <tr>
-              <th>Site</th>
-              <th>Part</th>
-              <th>Rev</th>
-              <th>Date</th>
-              <th>Tab</th>
-              <th>Busway Supplier</th>
-              <th>Approval</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-
-        <h3 style="margin-top:12px;">Form approvals</h3>
-        <table class="table" id="tblPendingForms">
-          <thead>
-            <tr>
-              <th>Rev</th>
-              <th>Status</th>
-              <th>File</th>
-              <th>Created</th>
-              <th>ECR/ACT Ref</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- CREATE FORM -->
-    <section class="page" id="page-createForm">
-      <div class="card">
-        <h3>Schedule new mBOM Form revision (Copy Job)</h3>
-
-        <div class="banner">
-          Form copy can take time. This action is scheduled and visible in “Copy Monitoring”.
-          The previous Form revision is moved to “Obsolete”.
-        </div>
-
-        <div class="grid2">
-          <div>
-            <label>Base Form File ID (optional)</label>
-            <input id="formBaseId" placeholder="If empty, uses CURRENT_APPROVED_FORM_FILE_ID">
-          </div>
-          <div>
-            <label>New Form Rev (number)</label>
-            <input id="formNewRev" placeholder="e.g., 4">
-          </div>
-        </div>
-
-        <div class="grid2" style="margin-top:10px;">
-          <div>
-            <label>ECR/ACT Reference</label>
-            <input id="formChangeRef" placeholder="e.g., ECR-12345 or ACT-…">
-          </div>
-          <div>
-            <label>Affected Items (optional)</label>
-            <input id="formAffected" placeholder="optional">
-          </div>
-        </div>
-
-        <div style="margin-top:10px;">
-          <label>Description</label>
-          <textarea id="formDesc" placeholder="What changed and why"></textarea>
-        </div>
-
-        <div class="row" style="margin-top:10px;">
-          <button class="btn primary" id="btnScheduleForm">Schedule Form Revision</button>
-        </div>
-
-        <div class="toast" id="formOut" style="display:none;"></div>
-      </div>
-    </section>
-
-    <!-- CREATE RELEASED -->
-    <section class="page" id="page-createReleased">
-      <div class="card">
-        <h3>Schedule RELEASED mBOM (Copy Job)</h3>
-
-        <div class="banner" id="relBanner">
-          Create RELEASED will be disabled until required approvals are satisfied (Agile + Form), depending on Settings.
-        </div>
-
-        <div class="grid3">
-          <div>
-            <label>Project</label>
-            <select id="relProject"></select>
-            <div class="mono" id="relProjectMeta"></div>
-          </div>
-          <div>
-            <label>Freeze Agile inputs</label>
-            <select id="relFreeze">
-              <option value="true">Yes (recommended)</option>
-              <option value="false">No (keep linked)</option>
-            </select>
-          </div>
-          <div>
-            <label>ClusterGroup</label>
-            <input id="relClusterGroup" disabled>
-          </div>
-        </div>
-
-        <div class="grid2" style="margin-top:10px;">
-          <div>
-            <label>Cluster Agile (Zone) revision</label>
-            <select id="relClusterTab"></select>
-            <div class="mono" id="relClusterMeta"></div>
+      <main class="main">
+        <div id="statusBanner" class="statusBanner" style="display:none;"></div>
+        <!-- DASHBOARD -->
+        <section class="page active" id="page-dashboard">
+          <div class="pageTitle">
+            <h2>Dashboard</h2>
+            <p>Quick health and approval status across jobs, projects, and Agile inputs.</p>
           </div>
 
-          <div id="mdaBlock">
-            <label>MDA Agile revision (only for ClusterGroup = 1)</label>
-            <select id="relMdaTab"></select>
-            <div class="mono" id="relMdaMeta"></div>
-          </div>
-        </div>
-
-        <div class="grid2" style="margin-top:10px;">
-          <div>
-            <label>Cluster Busway Code (writes G2 in “Cluster” sheet)</label>
-            <select id="relClusterCode">
-              <option value="">(empty)</option>
-              <option value="EI">EI — E&amp;I</option>
-              <option value="EA">EA — EAE</option>
-              <option value="MA">MA — Mardix</option>
-            </select>
-            <div class="mono" id="relClusterBusway"></div>
+          <div class="card">
+            <div class="cardHeader">
+              <h3>Copy Jobs (progress)</h3>
+            </div>
+            <div class="state" id="state-jobs"></div>
+            <div class="cardBody" id="body-jobs">
+              <div id="jobsSummary" class="mono"></div>
+              <div id="jobsRunning" style="margin-top:10px;"></div>
+            </div>
           </div>
 
-          <div id="mdaBuswayBlock">
-            <label>MDA Busway Code (writes G2 in “MDA” sheet)</label>
-            <select id="relMdaCode">
-              <option value="">(empty)</option>
-              <option value="EI">EI — E&amp;I</option>
-              <option value="ST">ST — Starline</option>
-            </select>
-            <div class="mono" id="relMdaBusway"></div>
+          <div class="subtabs">
+            <div class="subtab active" data-sub="projects">Projects</div>
+            <div class="subtab" data-sub="forms">Form Library</div>
+            <div class="subtab" data-sub="agile">Agile BOM</div>
+            <div class="subtab" data-sub="approvals">Approvals</div>
           </div>
-        </div>
 
-        <div class="grid2" style="margin-top:10px;">
-          <div>
-            <label>ECO (optional)</label>
-            <input id="relEco" placeholder="optional">
+          <!-- Projects -->
+          <div class="card" id="dash-projects">
+            <div class="cardHeader">
+              <h3>Projects (select to batch create RELEASED)</h3>
+            </div>
+            <div class="state" id="state-projects"></div>
+            <div class="cardBody" id="body-projects">
+              <div class="row">
+                <button class="btn" id="btnSelectEligible">Select eligible (approved)</button>
+                <button class="btn" id="btnClearSelection">Clear selection</button>
+                <button class="btn primary" id="btnScheduleSelected">Schedule RELEASED for selected</button>
+                <button class="btn" id="btnScheduleAllEligible">Schedule RELEASED for ALL eligible</button>
+                <span class="mono" id="batchHint"></span>
+              </div>
+
+              <table class="table" id="tblProjects">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Project</th>
+                    <th>Site</th>
+                    <th>ClusterGroup</th>
+                    <th>MDA required?</th>
+                    <th>Cluster Agile</th>
+                    <th>MDA Agile</th>
+                    <th>Latest RELEASED</th>
+                    <th>Eligibility</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <div class="toast mono" id="projectsHint"></div>
+            </div>
           </div>
-          <div>
-            <label>Affected Items (optional)</label>
-            <input id="relAffected" placeholder="optional">
+
+          <!-- Forms -->
+          <div class="card" id="dash-forms" style="display:none;">
+            <div class="cardHeader">
+              <h3>Form Library (ECR/ACT for Form revisions)</h3>
+            </div>
+            <div class="state" id="state-forms"></div>
+            <div class="cardBody" id="body-forms">
+              <div class="banner">
+                “Current Approved” is the Form file ID stored in CONFIG → CURRENT_APPROVED_FORM_FILE_ID.
+                If REQUIRE_APPROVED_FORM=TRUE, RELEASED creation is blocked unless that Form is marked APPROVED.
+              </div>
+              <table class="table" id="tblForms">
+                <thead>
+                  <tr>
+                    <th>Rev</th>
+                    <th>Status</th>
+                    <th>Current</th>
+                    <th>File</th>
+                    <th>Created</th>
+                    <th>ECR/ACT Ref</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
-        <div style="margin-top:10px;">
-          <label>Description</label>
-          <textarea id="relDesc" placeholder="Release reason / summary"></textarea>
-        </div>
-
-        <div class="row" style="margin-top:10px;">
-          <button class="btn primary" id="btnScheduleReleased">Schedule RELEASED</button>
-          <span class="mono" id="relControlMsg"></span>
-        </div>
-
-        <div class="toast" id="relOut" style="display:none;"></div>
-      </div>
-    </section>
-
-    <!-- COPY MONITORING -->
-    <section class="page" id="page-monitoring">
-      <div class="card">
-        <h3>Copy Monitoring (Jobs)</h3>
-        <div class="row">
-          <button class="btn" id="btnRefreshJobs">Refresh jobs</button>
-          <button class="btn warn" id="btnRestartJobs">Restart job runner</button>
-          <label style="margin:0;">
-            <input type="checkbox" id="chkAutoJobs" checked>
-            Auto-refresh while running
-          </label>
-        </div>
-
-
-        <table class="table" id="tblJobs">
-          <thead>
-            <tr>
-              <th>Created</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Progress</th>
-              <th>Message</th>
-              <th>Results</th>
-              <th>Errors</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-
-
-        <div class="toast mono" id="jobsHint"></div>
-      </div>
-    </section>
-
-    <!-- PROJECT DATA -->
-    <section class="page" id="page-projectData">
-      <div class="card">
-        <h3>Project Data Explorer</h3>
-        <div class="row">
-          <div style="min-width:260px;">
-            <label>Project</label>
-            <select id="pdProject"></select>
+          <!-- Agile -->
+          <div class="card" id="dash-agile" style="display:none;">
+            <div class="cardHeader">
+              <h3>Agile BOM (latest per Site/Part)</h3>
+            </div>
+            <div class="state" id="state-agile"></div>
+            <div class="cardBody" id="body-agile">
+              <table class="table" id="tblAgileLatest">
+                <thead>
+                  <tr>
+                    <th>Site</th>
+                    <th>Part</th>
+                    <th>Rev</th>
+                    <th>Date</th>
+                    <th>Tab</th>
+                    <th>Busway Supplier</th>
+                    <th>Approval</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <div class="toast mono" id="agileHint"></div>
+            </div>
           </div>
-          <button class="btn primary" id="btnLoadProjectData">Load</button>
-        </div>
 
-        <div id="projectTree" style="margin-top:12px;"></div>
-      </div>
-    </section>
+          <!-- Approvals -->
+          <div class="card" id="dash-approvals" style="display:none;">
+            <div class="cardHeader">
+              <h3>Approvals Queue</h3>
+            </div>
+            <div class="state" id="state-approvals"></div>
+            <div class="cardBody" id="body-approvals">
+              <div class="row">
+                <label style="margin:0;">
+                  <input type="checkbox" id="chkPendingOnly" checked>
+                  Show pending only
+                </label>
+              </div>
 
-    <!-- NOTIFICATIONS -->
-    <section class="page" id="page-notifications">
-      <div class="card">
-        <h3>Notification Settings</h3>
-        <div class="banner">
-          Recipients and switches are stored in NOTIF_CONFIG.
-          RELEASED notifications are grouped into digests over 4 hours (configurable).
-        </div>
+              <div class="banner" style="margin-top:10px;">
+                Create RELEASED is disabled until required approvals are completed (Agile approvals, and Form approval if enforced).
+              </div>
 
-        <div class="toast mono" id="notifStatus"></div>
+              <h3 style="margin-top:10px;">Agile approvals</h3>
+              <table class="table" id="tblPendingAgile">
+                <thead>
+                  <tr>
+                    <th>Site</th>
+                    <th>Part</th>
+                    <th>Rev</th>
+                    <th>Date</th>
+                    <th>Tab</th>
+                    <th>Busway Supplier</th>
+                    <th>Approval</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
 
-        <table class="table" id="tblNotif">
-          <thead>
-            <tr><th>Key</th><th>Value</th><th>Description</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-
-        <div class="row" style="margin-top:10px;">
-          <button class="btn primary" id="btnSaveNotif">Save notification settings</button>
-        </div>
-
-        <div class="toast" id="notifOut" style="display:none;"></div>
-      </div>
-    </section>
-
-    <!-- SETTINGS -->
-    <section class="page" id="page-settings">
-      <div class="card">
-        <h3>Configuration</h3>
-        <div class="toast mono" id="settingsHint"></div>
-
-        <div class="row">
-          <button class="btn" id="btnRefreshFiles">Refresh Files Index (Drive)</button>
-          <button class="btn" id="btnReloadAll">Reload</button>
-        </div>
-
-        <table class="table" id="tblConfig">
-          <thead>
-            <tr><th>Key</th><th>Value</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-
-        <div class="row" style="margin-top:10px;">
-          <button class="btn primary" id="btnSaveConfig">Save configuration</button>
-        </div>
-
-        <div class="toast" id="cfgOut" style="display:none;"></div>
-      </div>
-    </section>
-
-    <!-- DIAGNOSTICS -->
-    <section class="page" id="page-diagnostics">
-      <div class="card">
-        <h3>Diagnostics</h3>
-        <div class="banner">
-          Quick visibility into the latest request IDs and recent client-side errors.
-        </div>
-
-        <div class="grid2" style="margin-top:10px;">
-          <div>
-            <label>App version</label>
-            <div class="mono" id="diagVersion">—</div>
+              <h3 style="margin-top:12px;">Form approvals</h3>
+              <table class="table" id="tblPendingForms">
+                <thead>
+                  <tr>
+                    <th>Rev</th>
+                    <th>Status</th>
+                    <th>File</th>
+                    <th>Created</th>
+                    <th>ECR/ACT Ref</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
-          <div>
-            <label>Last requestId</label>
-            <div class="mono" id="diagRequestId">—</div>
+        </section>
+
+        <!-- CREATE FORM -->
+        <section class="page" id="page-createForm">
+          <div class="pageTitle">
+            <h2>Create mBOM Form</h2>
+            <p>Schedule a new form revision copy job with clear change context.</p>
           </div>
-        </div>
+          <div class="card">
+            <div class="cardHeader">
+              <h3>Schedule new mBOM Form revision (Copy Job)</h3>
+            </div>
+            <div class="state" id="state-create-form"></div>
+            <div class="cardBody" id="body-create-form">
+              <div class="banner">
+                Form copy can take time. This action is scheduled and visible in “Copy Monitoring”.
+                The previous Form revision is moved to “Obsolete”.
+              </div>
 
-        <h4 style="margin-top:16px;">Recent errors</h4>
-        <table class="table" id="tblDiagErrors">
-          <thead>
-            <tr>
-              <th>When</th>
-              <th>Context</th>
-              <th>Message</th>
-              <th>Request</th>
-              <th>Stack</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+              <div class="grid2">
+                <div>
+                  <label>Base Form File ID (optional)</label>
+                  <input id="formBaseId" placeholder="If empty, uses CURRENT_APPROVED_FORM_FILE_ID">
+                </div>
+                <div>
+                  <label>New Form Rev (number)</label>
+                  <input id="formNewRev" placeholder="e.g., 4">
+                </div>
+              </div>
 
-    <!-- IMPORT -->
-    <section class="page" id="page-import">
-      <div class="card">
-        <h3>Import previously created RELEASED mBOMs (integrate to FILES)</h3>
-        <div class="banner">
-          Paste one per line:
-          - File URL or File ID, OR
-          - CSV: fileId,projectKey,rev,status
-        </div>
-        <label>Input</label>
-        <textarea id="importText" placeholder="https://docs.google.com/spreadsheets/d/FILEID/edit
+              <div class="grid2" style="margin-top:10px;">
+                <div>
+                  <label>ECR/ACT Reference</label>
+                  <input id="formChangeRef" placeholder="e.g., ECR-12345 or ACT-…">
+                </div>
+                <div>
+                  <label>Affected Items (optional)</label>
+                  <input id="formAffected" placeholder="optional">
+                </div>
+              </div>
+
+              <div style="margin-top:10px;">
+                <label>Description</label>
+                <textarea id="formDesc" placeholder="What changed and why"></textarea>
+              </div>
+
+              <div class="row" style="margin-top:10px;">
+                <button class="btn primary" id="btnScheduleForm">Schedule Form Revision</button>
+              </div>
+
+              <div class="toast" id="formOut" style="display:none;"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CREATE RELEASED -->
+        <section class="page" id="page-createReleased">
+          <div class="pageTitle">
+            <h2>Create RELEASED</h2>
+            <p>Build a controlled RELEASED copy from approved Agile inputs.</p>
+          </div>
+          <div class="card">
+            <div class="cardHeader">
+              <h3>Schedule RELEASED mBOM (Copy Job)</h3>
+            </div>
+            <div class="state" id="state-create-released"></div>
+            <div class="cardBody" id="body-create-released">
+              <div class="banner" id="relBanner">
+                Create RELEASED will be disabled until required approvals are satisfied (Agile + Form), depending on Settings.
+              </div>
+
+              <div class="grid3">
+                <div>
+                  <label>Project</label>
+                  <select id="relProject"></select>
+                  <div class="mono" id="relProjectMeta"></div>
+                </div>
+                <div>
+                  <label>Freeze Agile inputs</label>
+                  <select id="relFreeze">
+                    <option value="true">Yes (recommended)</option>
+                    <option value="false">No (keep linked)</option>
+                  </select>
+                </div>
+                <div>
+                  <label>ClusterGroup</label>
+                  <input id="relClusterGroup" disabled>
+                </div>
+              </div>
+
+              <div class="grid2" style="margin-top:10px;">
+                <div>
+                  <label>Cluster Agile (Zone) revision</label>
+                  <select id="relClusterTab"></select>
+                  <div class="mono" id="relClusterMeta"></div>
+                </div>
+
+                <div id="mdaBlock">
+                  <label>MDA Agile revision (only for ClusterGroup = 1)</label>
+                  <select id="relMdaTab"></select>
+                  <div class="mono" id="relMdaMeta"></div>
+                </div>
+              </div>
+
+              <div class="grid2" style="margin-top:10px;">
+                <div>
+                  <label>Cluster Busway Code (writes G2 in “Cluster” sheet)</label>
+                  <select id="relClusterCode">
+                    <option value="">(empty)</option>
+                    <option value="EI">EI — E&amp;I</option>
+                    <option value="EA">EA — EAE</option>
+                    <option value="MA">MA — Mardix</option>
+                  </select>
+                  <div class="mono" id="relClusterBusway"></div>
+                </div>
+
+                <div id="mdaBuswayBlock">
+                  <label>MDA Busway Code (writes G2 in “MDA” sheet)</label>
+                  <select id="relMdaCode">
+                    <option value="">(empty)</option>
+                    <option value="EI">EI — E&amp;I</option>
+                    <option value="ST">ST — Starline</option>
+                  </select>
+                  <div class="mono" id="relMdaBusway"></div>
+                </div>
+              </div>
+
+              <div class="grid2" style="margin-top:10px;">
+                <div>
+                  <label>ECO (optional)</label>
+                  <input id="relEco" placeholder="optional">
+                </div>
+                <div>
+                  <label>Affected Items (optional)</label>
+                  <input id="relAffected" placeholder="optional">
+                </div>
+              </div>
+
+              <div style="margin-top:10px;">
+                <label>Description</label>
+                <textarea id="relDesc" placeholder="Release reason / summary"></textarea>
+              </div>
+
+              <div class="row" style="margin-top:10px;">
+                <button class="btn primary" id="btnScheduleReleased">Schedule RELEASED</button>
+                <span class="mono" id="relControlMsg"></span>
+              </div>
+
+              <div class="toast" id="relOut" style="display:none;"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- COPY MONITORING -->
+        <section class="page" id="page-monitoring">
+          <div class="pageTitle">
+            <h2>Copy Monitoring</h2>
+            <p>Track queue activity and job results as background triggers run.</p>
+          </div>
+          <div class="card">
+            <div class="cardHeader">
+              <h3>Copy Monitoring (Jobs)</h3>
+            </div>
+            <div class="state" id="state-monitoring"></div>
+            <div class="cardBody" id="body-monitoring">
+              <div class="row">
+                <button class="btn" id="btnRefreshJobs">Refresh jobs</button>
+                <button class="btn warn" id="btnRestartJobs">Restart job runner</button>
+                <label style="margin:0;">
+                  <input type="checkbox" id="chkAutoJobs" checked>
+                  Auto-refresh while running
+                </label>
+              </div>
+
+              <table class="table" id="tblJobs">
+                <thead>
+                  <tr>
+                    <th>Created</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Message</th>
+                    <th>Results</th>
+                    <th>Errors</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+
+              <div class="toast mono" id="jobsHint"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PROJECT DATA -->
+        <section class="page" id="page-projectData">
+          <div class="pageTitle">
+            <h2>Project Data Explorer</h2>
+            <p>Inspect Agile history and RELEASED versions for a selected project.</p>
+          </div>
+          <div class="card">
+            <div class="cardHeader">
+              <h3>Project Data Explorer</h3>
+            </div>
+            <div class="state" id="state-project-data"></div>
+            <div class="cardBody" id="body-project-data">
+              <div class="row">
+                <div style="min-width:260px;">
+                  <label>Project</label>
+                  <select id="pdProject"></select>
+                </div>
+                <button class="btn primary" id="btnLoadProjectData">Load</button>
+              </div>
+
+              <div class="state" id="state-project-tree"></div>
+              <div id="projectTree" style="margin-top:12px;"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- NOTIFICATIONS -->
+        <section class="page" id="page-notifications">
+          <div class="pageTitle">
+            <h2>Notifications</h2>
+            <p>Manage email recipients and digest timing for updates.</p>
+          </div>
+          <div class="card">
+            <div class="cardHeader">
+              <h3>Notification Settings</h3>
+            </div>
+            <div class="state" id="state-notifications"></div>
+            <div class="cardBody" id="body-notifications">
+              <div class="banner">
+                Recipients and switches are stored in NOTIF_CONFIG.
+                RELEASED notifications are grouped into digests over 4 hours (configurable).
+              </div>
+
+              <div class="toast mono" id="notifStatus"></div>
+
+              <table class="table" id="tblNotif">
+                <thead>
+                  <tr><th>Key</th><th>Value</th><th>Description</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+
+              <div class="row" style="margin-top:10px;">
+                <button class="btn primary" id="btnSaveNotif">Save notification settings</button>
+              </div>
+
+              <div class="toast" id="notifOut" style="display:none;"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section class="page" id="page-settings">
+          <div class="pageTitle">
+            <h2>Settings</h2>
+            <p>Review configuration values and keep file indexes current.</p>
+          </div>
+          <div class="card">
+            <div class="cardHeader">
+              <h3>Configuration</h3>
+            </div>
+            <div class="state" id="state-settings"></div>
+            <div class="cardBody" id="body-settings">
+              <div class="toast mono" id="settingsHint"></div>
+
+              <div class="row">
+                <button class="btn" id="btnRefreshFiles">Refresh Files Index (Drive)</button>
+                <button class="btn" id="btnReloadAll">Reload</button>
+              </div>
+
+              <table class="table" id="tblConfig">
+                <thead>
+                  <tr><th>Key</th><th>Value</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+
+              <div class="row" style="margin-top:10px;">
+                <button class="btn primary" id="btnSaveConfig">Save configuration</button>
+              </div>
+
+              <div class="toast" id="cfgOut" style="display:none;"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- DIAGNOSTICS -->
+        <section class="page" id="page-diagnostics">
+          <div class="pageTitle">
+            <h2>Diagnostics</h2>
+            <p>Track request IDs and recent client-side errors.</p>
+          </div>
+          <div class="card">
+            <div class="cardHeader">
+              <h3>Diagnostics</h3>
+            </div>
+            <div class="state" id="state-diagnostics"></div>
+            <div class="cardBody" id="body-diagnostics">
+              <div class="banner">
+                Quick visibility into the latest request IDs and recent client-side errors.
+              </div>
+
+              <div class="grid2" style="margin-top:10px;">
+                <div>
+                  <label>App version</label>
+                  <div class="mono" id="diagVersion">—</div>
+                </div>
+                <div>
+                  <label>Last requestId</label>
+                  <div class="mono" id="diagRequestId">—</div>
+                </div>
+              </div>
+
+              <h4 style="margin-top:16px;">Recent errors</h4>
+              <table class="table" id="tblDiagErrors">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Context</th>
+                    <th>Message</th>
+                    <th>Request</th>
+                    <th>Stack</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- IMPORT -->
+        <section class="page" id="page-import">
+          <div class="pageTitle">
+            <h2>Import RELEASED Files</h2>
+            <p>Register legacy RELEASED mBOMs in the FILES table.</p>
+          </div>
+          <div class="card">
+            <div class="cardHeader">
+              <h3>Import previously created RELEASED mBOMs (integrate to FILES)</h3>
+            </div>
+            <div class="state" id="state-import"></div>
+            <div class="cardBody" id="body-import">
+              <div class="banner">
+                Paste one per line:
+                - File URL or File ID, OR
+                - CSV: fileId,projectKey,rev,status
+              </div>
+              <label>Input</label>
+              <textarea id="importText" placeholder="https://docs.google.com/spreadsheets/d/FILEID/edit
 FILEID
 FILEID,GRQ6A-2,3,RELEASED"></textarea>
 
-        <div class="row" style="margin-top:10px;">
-          <button class="btn primary" id="btnImport">Import</button>
-        </div>
+              <div class="row" style="margin-top:10px;">
+                <button class="btn primary" id="btnImport">Import</button>
+              </div>
 
-        <div class="toast" id="importOut" style="display:none;"></div>
-      </div>
-    </section>
+              <div class="toast" id="importOut" style="display:none;"></div>
+            </div>
+          </div>
+        </section>
 
-    <!-- README -->
-    <section class="page" id="page-readme">
-      <div class="card">
-        <h3>README</h3>
-        <div class="toast" style="white-space:pre-wrap; line-height:1.45;">
+        <!-- README -->
+        <section class="page" id="page-readme">
+          <div class="pageTitle">
+            <h2>README</h2>
+            <p>Usage overview and operational reminders.</p>
+          </div>
+          <div class="card">
+            <div class="cardHeader">
+              <h3>README</h3>
+            </div>
+            <div class="state" id="state-readme"></div>
+            <div class="cardBody" id="body-readme">
+              <div class="toast" style="white-space:pre-wrap; line-height:1.45;">
 This app manages:
 - Agile BOM indexing + approvals
 - mBOM Form revision control
@@ -506,10 +617,15 @@ Configure in Notifications tab.
 
 Import:
 - Use Import tab to register older RELEASED files into FILES.
-        </div>
-      </div>
-    </section>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
   </div>
+
+  <div id="toastStack" class="toastStack" aria-live="polite" aria-atomic="true"></div>
 
 <script>
   let BOOT = null;
@@ -523,6 +639,11 @@ Import:
     recentErrors: []
   };
   const DIAG_MAX_ERRORS = 8;
+  const STATE_DEFAULTS = {
+    loading: { icon: '⏳', title: 'Loading', body: 'Fetching the latest data.' },
+    empty: { icon: '○', title: 'Nothing here yet', body: 'When data is available it will appear here.' },
+    error: { icon: '⚠️', title: 'Something went wrong', body: 'Please retry or contact support.' }
+  };
 
   function $(id){ return document.getElementById(id); }
 
@@ -550,6 +671,68 @@ Import:
     banner.textContent = message;
     banner.className = `statusBanner ${type || 'info'}`;
     banner.style.display = 'block';
+  }
+
+  function setState(id, state, overrides){
+    const el = $(id);
+    if (!el) return;
+    if (!state || state === 'ready') {
+      el.className = 'state';
+      el.innerHTML = '';
+      return;
+    }
+    const base = STATE_DEFAULTS[state] || {};
+    const icon = overrides && overrides.icon ? overrides.icon : base.icon || '';
+    const title = overrides && overrides.title ? overrides.title : base.title || '';
+    const body = overrides && overrides.body ? overrides.body : base.body || '';
+    el.className = `state active ${state}`;
+    el.innerHTML = `
+      <div class="stateIcon">${escapeHtml(icon)}</div>
+      <div class="stateTitle">${escapeHtml(title)}</div>
+      <div class="stateBody">${escapeHtml(body)}</div>
+    `;
+  }
+
+  function setStateWithBody(stateId, bodyId, state, overrides){
+    setState(stateId, state, overrides);
+    const body = $(bodyId);
+    if (!body) return;
+    body.classList.toggle('is-hidden', !!state && state !== 'ready');
+  }
+
+  function setTableEmpty(tbody, colSpan, message){
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="${colSpan}" class="mono">${escapeHtml(message || 'No data available.')}</td>`;
+    tbody.appendChild(tr);
+  }
+
+  function toast(type, message){
+    const stack = $('toastStack');
+    if (!stack) return;
+    const item = document.createElement('div');
+    item.className = `toastItem ${type || 'info'}`;
+    item.innerHTML = `
+      <div class="toastMessage">${escapeHtml(message || '')}</div>
+      <button class="toastClose" aria-label="Dismiss">✕</button>
+    `;
+    const closeBtn = item.querySelector('.toastClose');
+    closeBtn.addEventListener('click', () => item.remove());
+    stack.appendChild(item);
+    requestAnimationFrame(() => item.classList.add('show'));
+    setTimeout(() => item.remove(), 6000);
+  }
+
+  function notifySuccess(message){
+    toast('success', message);
+  }
+
+  function notifyError(context, err){
+    const msg = context ? `${context}: ${formatErrorMessage(err)}` : formatErrorMessage(err);
+    setStatus(msg, 'error');
+    toast('error', msg);
+    recordError(context, err);
+    console.error('[mBOM] Error', context, err);
   }
 
   function normalizeResponse(res) {
@@ -604,11 +787,11 @@ Import:
     if (!tbody) return;
     tbody.innerHTML = '';
     if (!DIAG.recentErrors.length) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td class="mono" colspan="5">No recent errors.</td>';
-      tbody.appendChild(tr);
+      setState('state-diagnostics', 'empty', { title: 'No errors recorded', body: 'Client-side errors will show here if they occur.' });
+      setTableEmpty(tbody, 5, 'No recent errors.');
       return;
     }
+    setState('state-diagnostics', 'ready');
     DIAG.recentErrors.forEach(e => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -655,13 +838,6 @@ Import:
     const requestId = err && err.requestId ? ` (req ${err.requestId})` : '';
     const stackId = err && err.stackId ? ` (stack ${err.stackId})` : '';
     return `${base}${requestId}${stackId}`;
-  }
-
-  function notifyError(context, err){
-    const msg = context ? `${context}: ${formatErrorMessage(err)}` : formatErrorMessage(err);
-    setStatus(msg, 'error');
-    recordError(context, err);
-    console.error('[mBOM] Error', context, err);
   }
 
   async function run(label, fn, payload){
@@ -772,6 +948,7 @@ Import:
     try {
       await run('Refreshing Agile Index…', 'api_refreshAgileIndex');
       await bootstrap();
+      notifySuccess('Agile index refreshed.');
     } catch(e){
       notifyError('Agile refresh failed', e);
     }
@@ -792,7 +969,7 @@ Import:
   $('btnRefreshFiles').addEventListener('click', async () => {
     try{
       const res = await run('Refreshing Files Index…', 'api_refreshFilesIndex');
-      alert(`Files indexed. Inserted: ${res.inserted}, Updated: ${res.updated}`);
+      notifySuccess(`Files indexed. Inserted: ${res.inserted}, Updated: ${res.updated}.`);
       await bootstrap();
     } catch(e){
       notifyError('Files refresh failed', e);
@@ -814,6 +991,7 @@ Import:
       };
       const res = await run('Scheduling Form copy…', 'api_scheduleFormRevision', payload);
       out.innerHTML = `Scheduled Job: <span class="mono">${escapeHtml(res.jobId)}</span>. Track it in “Copy Monitoring”.`;
+      notifySuccess(`Form revision scheduled (Job ${res.jobId}).`);
       await bootstrap();
       switchTo('monitoring');
     } catch(e){
@@ -848,6 +1026,7 @@ Import:
 
       const res = await run('Scheduling RELEASED copy…', 'api_scheduleReleasedForProject', payload);
       out.innerHTML = `Scheduled Job: <span class="mono">${escapeHtml(res.jobId)}</span>. Track it in “Copy Monitoring”.`;
+      notifySuccess(`RELEASED scheduled (Job ${res.jobId}).`);
       await bootstrap();
       switchTo('monitoring');
     } catch(e){
@@ -865,6 +1044,7 @@ Import:
       const res = await run('Importing files…', 'api_importReleased', { text: $('importText').value });
       out.innerHTML = `<div class="mono">Imported: ${escapeHtml(res.imported)} • Skipped: ${escapeHtml(res.skipped)} • Errors: ${escapeHtml(res.errors.length)}</div>
         <div class="mono">${(res.errors||[]).slice(0,10).map(e=>`• ${escapeHtml(e)}`).join('<br>')}</div>`;
+      notifySuccess(`Import complete. Imported ${res.imported}, skipped ${res.skipped}.`);
       await bootstrap();
     } catch(e){
       out.innerHTML = `<span style="color:var(--red)">Error:</span> ${escapeHtml(e.message || e)}`;
@@ -882,6 +1062,7 @@ Import:
       $('tblNotif').querySelectorAll('input[data-key]').forEach(inp => updates[inp.dataset.key] = inp.value);
       const res = await run('Saving notifications…', 'api_updateNotifSettings', { updates });
       out.innerHTML = `Saved. Updated keys: ${escapeHtml(res.updated)}`;
+      notifySuccess('Notification settings saved.');
       await bootstrap();
     } catch(e){
       out.innerHTML = `<span style="color:var(--red)">Error:</span> ${escapeHtml(e.message || e)}`;
@@ -899,6 +1080,7 @@ Import:
       $('tblConfig').querySelectorAll('input[data-key]').forEach(inp => updates[inp.dataset.key] = inp.value);
       const res = await run('Saving configuration…', 'api_updateConfig', { updates });
       out.innerHTML = `Saved. Updated keys: ${escapeHtml(res.updated)}`;
+      notifySuccess('Configuration saved.');
       await bootstrap();
     } catch(e){
       out.innerHTML = `<span style="color:var(--red)">Error:</span> ${escapeHtml(e.message || e)}`;
@@ -913,6 +1095,7 @@ Import:
     try{
       await run('Restarting job runner…', 'api_restartJobs', {});
       await refreshJobs();
+      notifySuccess('Job runner restarted.');
     } catch(e){
       notifyError('Restart failed', e);
     }
@@ -924,13 +1107,16 @@ Import:
   // Project Data
   $('btnLoadProjectData').addEventListener('click', async () => {
     const pk = $('pdProject').value;
-    $('projectTree').innerHTML = '<div class="mono">Loading…</div>';
+    setState('state-project-tree', 'loading', { title: 'Loading project data', body: 'Fetching latest project details.' });
+    $('projectTree').innerHTML = '';
     try{
       const res = await run('Loading project data…', 'api_getProjectData', { projectKey: pk });
       if (!res) throw new Error('api_getProjectData returned empty/invalid response.');
       renderProjectTree(res);
+      notifySuccess('Project data loaded.');
     } catch(e){
-      $('projectTree').innerHTML = `<span style="color:var(--red)">Error:</span> ${escapeHtml(e.message || e)}`;
+      $('projectTree').innerHTML = '';
+      setState('state-project-tree', 'error', { title: 'Unable to load project data', body: formatErrorMessage(e) });
       notifyError('Loading project data failed', e);
     }
   });
@@ -953,7 +1139,10 @@ Import:
   $('btnScheduleSelected').addEventListener('click', async () => {
     try{
       const selected = Array.from(document.querySelectorAll('input[data-projchk]:checked')).map(x => x.dataset.projchk);
-      if (!selected.length) return alert('No projects selected.');
+      if (!selected.length) {
+        toast('warn', 'No projects selected.');
+        return;
+      }
 
       const res = await run('Scheduling batch RELEASED…', 'api_scheduleReleasedForSelected', {
         projectKeys: selected,
@@ -963,7 +1152,7 @@ Import:
         description: 'Batch RELEASED creation (selected projects)'
       });
 
-      alert(`Scheduled Job: ${res.jobId}`);
+      notifySuccess(`Scheduled batch RELEASED (Job ${res.jobId}).`);
       await bootstrap();
       switchTo('monitoring');
     } catch(e){
@@ -979,7 +1168,7 @@ Import:
         batchSize: 3,
         description: 'Batch RELEASED creation (all eligible approved projects)'
       });
-      alert(`Scheduled Job: ${res.jobId}`);
+      notifySuccess(`Scheduled all eligible RELEASED (Job ${res.jobId}).`);
       await bootstrap();
       switchTo('monitoring');
     } catch(e){
@@ -1015,6 +1204,11 @@ Import:
   }
 
   function renderJobsTop(){
+    if (!BOOT || !BOOT.jobs || !BOOT.jobs.summary) {
+      setStateWithBody('state-jobs', 'body-jobs', 'loading', { title: 'Loading jobs', body: 'Pulling current queue status.' });
+      return;
+    }
+    setStateWithBody('state-jobs', 'body-jobs', 'ready');
     const s = BOOT.jobs.summary;
     $('jobsSummary').textContent = `Queued: ${s.queued} • Running: ${s.running} • Done: ${s.done} • Done(w/Errors): ${s.doneWithErrors} • Error: ${s.error}`;
 
@@ -1034,6 +1228,7 @@ Import:
 
   async function refreshJobs(){
     try{
+      setState('state-monitoring', 'loading', { title: 'Refreshing jobs', body: 'Fetching latest job statuses.' });
       const res = await callApi('api_listJobs', { limit: 50, activeOnly: false });
       renderJobsTable(res.jobs || []);
       // also refresh header card without full bootstrap
@@ -1041,79 +1236,89 @@ Import:
       BOOT.jobs.runningJob = res.summary?.runningJob || null;
       renderJobsTop();
     } catch(e) {
+      setState('state-monitoring', 'error', { title: 'Unable to refresh jobs', body: formatErrorMessage(e) });
       notifyError('Job refresh failed', e);
       throw e;
     }
   }
 
   function renderJobsTable(jobs){
-  const tbody = $('tblJobs').querySelector('tbody');
-  tbody.innerHTML = '';
-  $('jobsHint').textContent = 'Jobs run sequentially. Status updates as background triggers execute.';
+    const tbody = $('tblJobs').querySelector('tbody');
+    tbody.innerHTML = '';
+    $('jobsHint').textContent = 'Jobs run sequentially. Status updates as background triggers execute.';
 
-  jobs.forEach(j => {
-    const pct = j.progressTotal ? Math.round((j.progressCurrent / j.progressTotal) * 100) : 0;
-    const resultsHtml = (j.results || []).map(r => {
-      if (r.url && r.name) return `<div class="mono">${fileLink(r.url, r.name)}</div>`;
-      if (r.url) return `<div class="mono">${fileLink(r.url, 'Open')}</div>`;
-      if (r.projectKey && r.url) return `<div class="mono">${escapeHtml(r.projectKey)}: ${fileLink(r.url,'Open')}</div>`;
-      return `<div class="mono">${escapeHtml(JSON.stringify(r))}</div>`;
-    }).join('');
+    if (!jobs || !jobs.length) {
+      setState('state-monitoring', 'empty', { title: 'No jobs yet', body: 'Schedule a Form or RELEASED job to see activity.' });
+      setTableEmpty(tbody, 8, 'No jobs found.');
+      return;
+    }
+    setState('state-monitoring', 'ready');
 
-    const errorsHtml = (j.errors || []).map(e => {
-      const prefix = e.projectKey ? `${escapeHtml(e.projectKey)}: ` : '';
-      const errMsg = escapeHtml(e.error || '');
-      return `<div class="mono" style="color:var(--red)">• ${prefix}${errMsg}</div>`;
-    }).join('');
-    const statusUpper = String(j.status || '').toUpperCase();
-    const retryBtn = (['ERROR','DONE_WITH_ERRORS'].includes(statusUpper))
-      ? `<button class="btn" data-act="retryJob" data-id="${j.id}">Retry</button>`
-      : '';
-    const removeBtn = (statusUpper === 'RUNNING')
-      ? '<span class="mono">—</span>'
-      : `<button class="btn warn" data-act="removeJob" data-id="${j.id}">Remove</button>`;
-    const actionsHtml = [retryBtn, removeBtn].filter(Boolean).join(' ');
+    jobs.forEach(j => {
+      const pct = j.progressTotal ? Math.round((j.progressCurrent / j.progressTotal) * 100) : 0;
+      const resultsHtml = (j.results || []).map(r => {
+        if (r.url && r.name) return `<div class="mono">${fileLink(r.url, r.name)}</div>`;
+        if (r.url) return `<div class="mono">${fileLink(r.url, 'Open')}</div>`;
+        if (r.projectKey && r.url) return `<div class="mono">${escapeHtml(r.projectKey)}: ${fileLink(r.url,'Open')}</div>`;
+        return `<div class="mono">${escapeHtml(JSON.stringify(r))}</div>`;
+      }).join('');
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="mono">${escapeHtml(fmtDate(j.createdAt))}</td>
-      <td class="mono">${escapeHtml(j.type)}</td>
-      <td>${pill(j.status)}</td>
-      <td>
-        <div class="mono">${j.progressCurrent}/${j.progressTotal} (${pct}%)</div>
-        <div class="bar"><div style="width:${pct}%;"></div></div>
-      </td>
-      <td class="mono">${escapeHtml(j.message || '')}</td>
-      <td>${resultsHtml || '<span class="mono">—</span>'}</td>
-      <td>${errorsHtml || '<span class="mono">—</span>'}</td>
-      <td>${actionsHtml}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+      const errorsHtml = (j.errors || []).map(e => {
+        const prefix = e.projectKey ? `${escapeHtml(e.projectKey)}: ` : '';
+        const errMsg = escapeHtml(e.error || '');
+        return `<div class="mono" style="color:var(--red)">• ${prefix}${errMsg}</div>`;
+      }).join('');
+      const statusUpper = String(j.status || '').toUpperCase();
+      const retryBtn = (['ERROR','DONE_WITH_ERRORS'].includes(statusUpper))
+        ? `<button class="btn" data-act="retryJob" data-id="${j.id}">Retry</button>`
+        : '';
+      const removeBtn = (statusUpper === 'RUNNING')
+        ? '<span class="mono">—</span>'
+        : `<button class="btn warn" data-act="removeJob" data-id="${j.id}">Remove</button>`;
+      const actionsHtml = [retryBtn, removeBtn].filter(Boolean).join(' ');
 
-  tbody.querySelectorAll('button[data-act="retryJob"]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      try{
-        await run('Retrying job…', 'api_retryJob', { jobId: btn.dataset.id });
-        await refreshJobs();
-      } catch(e){
-        notifyError('Retry failed', e);
-      }
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(fmtDate(j.createdAt))}</td>
+        <td class="mono">${escapeHtml(j.type)}</td>
+        <td>${pill(j.status)}</td>
+        <td>
+          <div class="mono">${j.progressCurrent}/${j.progressTotal} (${pct}%)</div>
+          <div class="bar"><div style="width:${pct}%;"></div></div>
+        </td>
+        <td class="mono">${escapeHtml(j.message || '')}</td>
+        <td>${resultsHtml || '<span class="mono">—</span>'}</td>
+        <td>${errorsHtml || '<span class="mono">—</span>'}</td>
+        <td>${actionsHtml}</td>
+      `;
+      tbody.appendChild(tr);
     });
-  });
 
-  tbody.querySelectorAll('button[data-act="removeJob"]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!confirm('Remove this job from the queue/history?')) return;
-      try{
-        await run('Removing job…', 'api_removeJob', { jobId: btn.dataset.id });
-        await refreshJobs();
-      } catch(e){
-        notifyError('Remove failed', e);
-      }
+    tbody.querySelectorAll('button[data-act="retryJob"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try{
+          await run('Retrying job…', 'api_retryJob', { jobId: btn.dataset.id });
+          notifySuccess('Job retry scheduled.');
+          await refreshJobs();
+        } catch(e){
+          notifyError('Retry failed', e);
+        }
+      });
     });
-  });
-}
+
+    tbody.querySelectorAll('button[data-act="removeJob"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Remove this job from the queue/history?')) return;
+        try{
+          await run('Removing job…', 'api_removeJob', { jobId: btn.dataset.id });
+          notifySuccess('Job removed.');
+          await refreshJobs();
+        } catch(e){
+          notifyError('Remove failed', e);
+        }
+      });
+    });
+  }
 
 
   function renderProjects(projects){
@@ -1122,6 +1327,13 @@ Import:
 
     $('projectsHint').textContent =
       'Select projects to schedule batch RELEASED. Eligibility depends on approvals and Settings (Require Approved Form/Agile).';
+
+    if (!projects || !projects.length) {
+      setStateWithBody('state-projects', 'body-projects', 'empty', { title: 'No projects loaded', body: 'Projects will appear once the dashboard data is synced.' });
+      setTableEmpty(tbody, 9, 'No projects found.');
+      return;
+    }
+    setStateWithBody('state-projects', 'body-projects', 'ready');
 
     projects.forEach(p => {
       const eligible = computeEligibility(p);
@@ -1159,6 +1371,7 @@ Import:
       sel.addEventListener('change', async () => {
         try{
           await run('Updating ClusterGroup…', 'api_setProjectClusterGroup', { projectKey: sel.dataset.project, clusterGroup: Number(sel.value) });
+          notifySuccess('ClusterGroup updated.');
           await bootstrap();
         } catch(e){
           notifyError('ClusterGroup update failed', e);
@@ -1172,6 +1385,13 @@ Import:
     tbody.innerHTML = '';
 
     const currentId = (BOOT.config.currentApprovedFormFileId || '').trim();
+
+    if (!forms || !forms.length) {
+      setStateWithBody('state-forms', 'body-forms', 'empty', { title: 'No form revisions yet', body: 'Schedule a new revision to get started.' });
+      setTableEmpty(tbody, 7, 'No form revisions found.');
+      return;
+    }
+    setStateWithBody('state-forms', 'body-forms', 'ready');
 
     forms.sort((a,b) => Number(b.mbomRev||0) - Number(a.mbomRev||0));
     forms.forEach(f => {
@@ -1205,7 +1425,11 @@ Import:
 
     tbody.querySelectorAll('select[data-act="setStatus"]').forEach(sel => {
       sel.addEventListener('change', async () => {
-        try { await run('Updating status…','api_setFileStatus',{ fileId: sel.dataset.file, status: sel.value }); await bootstrap(); }
+        try {
+          await run('Updating status…','api_setFileStatus',{ fileId: sel.dataset.file, status: sel.value });
+          notifySuccess('Form status updated.');
+          await bootstrap();
+        }
         catch(e){ notifyError('Status update failed', e); }
       });
     });
@@ -1214,6 +1438,7 @@ Import:
       btn.addEventListener('click', async () => {
         try{
           await run('Setting current approved…','api_setApprovedFormFileId', btn.dataset.file);
+          notifySuccess('Current approved form updated.');
           await bootstrap();
         } catch(e){
           notifyError('Update failed', e);
@@ -1226,6 +1451,13 @@ Import:
     const tbody = $('tblAgileLatest').querySelector('tbody');
     tbody.innerHTML = '';
     $('agileHint').textContent = 'Approve latest Agile tabs to enable controlled RELEASED creation.';
+
+    if (!rows || !rows.length) {
+      setStateWithBody('state-agile', 'body-agile', 'empty', { title: 'No Agile rows found', body: 'Latest Agile tabs will appear after indexing.' });
+      setTableEmpty(tbody, 8, 'No Agile BOM data found.');
+      return;
+    }
+    setStateWithBody('state-agile', 'body-agile', 'ready');
 
     rows.forEach(r => {
       const site = escapeHtml(r.site);
@@ -1254,7 +1486,11 @@ Import:
     tbody.querySelectorAll('button[data-act="approveAgile"]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const notes = prompt(`Approve Agile Tab:\n${btn.dataset.tab}\n\nNotes (optional):`, '') || '';
-        try{ await run('Approving Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'APPROVED', notes }); await bootstrap(); }
+        try{
+          await run('Approving Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'APPROVED', notes });
+          notifySuccess('Agile tab approved.');
+          await bootstrap();
+        }
         catch(e){ notifyError('Approval failed', e); }
       });
     });
@@ -1262,7 +1498,11 @@ Import:
     tbody.querySelectorAll('button[data-act="rejectAgile"]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const notes = prompt(`Reject Agile Tab:\n${btn.dataset.tab}\n\nReason:`, '') || '';
-        try{ await run('Rejecting Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'REJECTED', notes }); await bootstrap(); }
+        try{
+          await run('Rejecting Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'REJECTED', notes });
+          notifySuccess('Agile tab rejected.');
+          await bootstrap();
+        }
         catch(e){ notifyError('Rejection failed', e); }
       });
     });
@@ -1299,10 +1539,18 @@ Import:
       tbodyA.appendChild(tr);
     });
 
+    if (!agileRows.length) {
+      setTableEmpty(tbodyA, 8, 'No Agile approvals pending.');
+    }
+
     tbodyA.querySelectorAll('button[data-tab]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const notes = prompt(`Approve Agile Tab:\n${btn.dataset.tab}\n\nNotes (optional):`, '') || '';
-        try{ await run('Approving Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'APPROVED', notes }); await bootstrap(); }
+        try{
+          await run('Approving Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'APPROVED', notes });
+          notifySuccess('Agile tab approved.');
+          await bootstrap();
+        }
         catch(e){ notifyError('Approval failed', e); }
       });
     });
@@ -1333,10 +1581,22 @@ Import:
       tbodyF.appendChild(tr);
     });
 
+    if (!forms.length) {
+      setTableEmpty(tbodyF, 6, 'No Form approvals pending.');
+    }
+
+    const hasApprovals = agileRows.length || forms.length;
+    if (!hasApprovals) {
+      setStateWithBody('state-approvals', 'body-approvals', 'empty', { title: 'No approvals pending', body: 'You are all caught up.' });
+    } else {
+      setStateWithBody('state-approvals', 'body-approvals', 'ready');
+    }
+
     tbodyF.querySelectorAll('button[data-file]').forEach(btn => {
       btn.addEventListener('click', async () => {
         try{
           await run('Approving Form…','api_setFileStatus',{ fileId: btn.dataset.file, status:'APPROVED' });
+          notifySuccess('Form approved.');
           await bootstrap();
         } catch(e){
           notifyError('Form approval failed', e);
@@ -1348,6 +1608,14 @@ Import:
   function renderConfig(rows){
     const tbody = $('tblConfig').querySelector('tbody');
     tbody.innerHTML = '';
+
+    if (!rows || !rows.length) {
+      setStateWithBody('state-settings', 'body-settings', 'empty', { title: 'No configuration rows found', body: 'Configuration values will appear after loading.' });
+      setTableEmpty(tbody, 2, 'No configuration data.');
+      return;
+    }
+    setStateWithBody('state-settings', 'body-settings', 'ready');
+
     rows.forEach(r => {
       const key = escapeHtml(r.key);
       const value = escapeHtml(String(r.value || ''));
@@ -1364,6 +1632,14 @@ Import:
   function renderNotif(rows, status){
     const tbody = $('tblNotif').querySelector('tbody');
     tbody.innerHTML = '';
+
+    if (!rows || !rows.length) {
+      setStateWithBody('state-notifications', 'body-notifications', 'empty', { title: 'No notification settings found', body: 'Notification configuration will appear after loading.' });
+      setTableEmpty(tbody, 3, 'No notification settings.');
+      return;
+    }
+    setStateWithBody('state-notifications', 'body-notifications', 'ready');
+
     rows.forEach(r => {
       const key = escapeHtml(r.key);
       const value = escapeHtml(String(r.value || ''));
@@ -1385,6 +1661,14 @@ Import:
   function populateProjectsDropdown(projects){
     $('relProject').innerHTML = '';
     $('pdProject').innerHTML = '';
+    if (!projects || !projects.length) {
+      setStateWithBody('state-create-released', 'body-create-released', 'empty', { title: 'No projects available', body: 'Load projects on the Dashboard to schedule RELEASED.' });
+      setStateWithBody('state-project-data', 'body-project-data', 'empty', { title: 'No projects loaded', body: 'Load project data from the Dashboard first.' });
+      return;
+    }
+    setStateWithBody('state-create-released', 'body-create-released', 'ready');
+    setStateWithBody('state-project-data', 'body-project-data', 'ready');
+
     projects.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.projectKey;
@@ -1409,31 +1693,42 @@ Import:
     $('mdaBlock').style.display = p.includeMda ? '' : 'none';
     $('mdaBuswayBlock').style.display = p.includeMda ? '' : 'none';
 
-    const clusterPart = `Zone ${p.zone}`;
-    const clusterRes = await callApi('api_listAgileTabs', { site: p.site, part: clusterPart });
-    cacheClusterRows = (clusterRes && Array.isArray(clusterRes.rows)) ? clusterRes.rows : [];
-    fillAgileSelect($('relClusterTab'), cacheClusterRows, p.clusterTab);
+    try {
+      const clusterPart = `Zone ${p.zone}`;
+      const clusterRes = await callApi('api_listAgileTabs', { site: p.site, part: clusterPart });
+      cacheClusterRows = (clusterRes && Array.isArray(clusterRes.rows)) ? clusterRes.rows : [];
+      fillAgileSelect($('relClusterTab'), cacheClusterRows, p.clusterTab);
 
-    if (p.includeMda) {
-      const mdaRes = await callApi('api_listAgileTabs', { site: p.site, part: 'MDA' });
-      cacheMdaRows = (mdaRes && Array.isArray(mdaRes.rows)) ? mdaRes.rows : [];
-      fillAgileSelect($('relMdaTab'), cacheMdaRows, p.mdaTab);
-    } else {
-      cacheMdaRows = [];
-      $('relMdaTab').innerHTML = '';
-      $('relMdaMeta').textContent = '';
-      $('relMdaBusway').textContent = '';
-      $('relMdaCode').value = '';
+      if (p.includeMda) {
+        const mdaRes = await callApi('api_listAgileTabs', { site: p.site, part: 'MDA' });
+        cacheMdaRows = (mdaRes && Array.isArray(mdaRes.rows)) ? mdaRes.rows : [];
+        fillAgileSelect($('relMdaTab'), cacheMdaRows, p.mdaTab);
+      } else {
+        cacheMdaRows = [];
+        $('relMdaTab').innerHTML = '';
+        $('relMdaMeta').textContent = '';
+        $('relMdaBusway').textContent = '';
+        $('relMdaCode').value = '';
+      }
+
+      updateAgileMeta();
+      updateBuswaySuggestions();
+      await updateControlledReleaseMsg();
+    } catch(e) {
+      notifyError('Loading Agile selections failed', e);
     }
-
-    updateAgileMeta();
-    updateBuswaySuggestions();
-    await updateControlledReleaseMsg();
   }
 
 
   function fillAgileSelect(selectEl, rows, preferredTab){
     selectEl.innerHTML = '';
+    if (!rows || !rows.length) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No Agile tabs available';
+      selectEl.appendChild(opt);
+      return;
+    }
     rows.forEach(r => {
       const opt = document.createElement('option');
       opt.value = r.tabName;
@@ -1449,11 +1744,13 @@ Import:
   function updateAgileMeta(){
     const c = findRow(cacheClusterRows, $('relClusterTab').value);
     if (c) $('relClusterMeta').innerHTML = `Selected: Rev ${escapeHtml(c.rev)} • ${escapeHtml(c.downloadDate)} • ${pill(c.approvalStatus)}`;
+    else $('relClusterMeta').textContent = 'No Agile tab selected.';
 
     const p = currentProject();
     if (p && p.includeMda) {
       const m = findRow(cacheMdaRows, $('relMdaTab').value);
       if (m) $('relMdaMeta').innerHTML = `Selected: Rev ${escapeHtml(m.rev)} • ${escapeHtml(m.downloadDate)} • ${pill(m.approvalStatus)}`;
+      else $('relMdaMeta').textContent = 'No Agile tab selected.';
     }
   }
 
@@ -1516,7 +1813,12 @@ Import:
   }
 
   function renderProjectTree(data){
-    if (!data) { $('projectTree').innerHTML = '<span class="mono">No data.</span>'; return; }
+    if (!data) {
+      setState('state-project-tree', 'empty', { title: 'No project data', body: 'Select a project to view details.' });
+      $('projectTree').innerHTML = '';
+      return;
+    }
+    setState('state-project-tree', 'ready');
 
     const projectKey = escapeHtml(data.projectKey || '');
     const site = escapeHtml(data.site || '');
@@ -1599,13 +1901,37 @@ Import:
     const missing = Array.from(expanded).filter(s => !BOOT.loaded[s]);
     if (!missing.length) return;
 
-    const data = await run(label || 'Loading data…', 'api_loadData', {
-      sections: missing,
-      jobsLimit: 30,
-      limitForms: 200,
-      limitReleases: 200,
-      limitAgileLatest: 300
+    missing.forEach(s => {
+      if (s === 'projects') setStateWithBody('state-projects', 'body-projects', 'loading', { title: 'Loading projects', body: 'Fetching the latest project list.' });
+      if (s === 'forms') setStateWithBody('state-forms', 'body-forms', 'loading', { title: 'Loading forms', body: 'Fetching form revisions.' });
+      if (s === 'agileLatest') setStateWithBody('state-agile', 'body-agile', 'loading', { title: 'Loading Agile BOM', body: 'Fetching latest Agile tabs.' });
+      if (s === 'approvals') setStateWithBody('state-approvals', 'body-approvals', 'loading', { title: 'Loading approvals', body: 'Fetching approval queues.' });
+      if (s === 'jobs') setStateWithBody('state-jobs', 'body-jobs', 'loading', { title: 'Loading jobs', body: 'Fetching queue summary.' });
+      if (s === 'config') setStateWithBody('state-settings', 'body-settings', 'loading', { title: 'Loading settings', body: 'Fetching configuration values.' });
+      if (s === 'notifications') setStateWithBody('state-notifications', 'body-notifications', 'loading', { title: 'Loading notifications', body: 'Fetching notification settings.' });
     });
+
+    let data = null;
+    try {
+      data = await run(label || 'Loading data…', 'api_loadData', {
+        sections: missing,
+        jobsLimit: 30,
+        limitForms: 200,
+        limitReleases: 200,
+        limitAgileLatest: 300
+      });
+    } catch (e) {
+      missing.forEach(s => {
+        if (s === 'projects') setStateWithBody('state-projects', 'body-projects', 'error', { title: 'Unable to load projects', body: formatErrorMessage(e) });
+        if (s === 'forms') setStateWithBody('state-forms', 'body-forms', 'error', { title: 'Unable to load forms', body: formatErrorMessage(e) });
+        if (s === 'agileLatest') setStateWithBody('state-agile', 'body-agile', 'error', { title: 'Unable to load Agile BOM', body: formatErrorMessage(e) });
+        if (s === 'approvals') setStateWithBody('state-approvals', 'body-approvals', 'error', { title: 'Unable to load approvals', body: formatErrorMessage(e) });
+        if (s === 'jobs') setStateWithBody('state-jobs', 'body-jobs', 'error', { title: 'Unable to load jobs', body: formatErrorMessage(e) });
+        if (s === 'config') setStateWithBody('state-settings', 'body-settings', 'error', { title: 'Unable to load settings', body: formatErrorMessage(e) });
+        if (s === 'notifications') setStateWithBody('state-notifications', 'body-notifications', 'error', { title: 'Unable to load notifications', body: formatErrorMessage(e) });
+      });
+      throw e;
+    }
 
     if (!data || typeof data !== 'object') {
       throw new Error('api_loadData returned empty/invalid response (null/undefined).');
@@ -1652,38 +1978,47 @@ Import:
   }
 
   async function bootstrap() {
-  try {
-    // Phase 1: fast bootstrap
-    const boot = await run('Loading app…', 'api_bootstrap');
-    if (!boot || typeof boot !== 'object') throw new Error('api_bootstrap returned empty/invalid response.');
+    try {
+      setStateWithBody('state-jobs', 'body-jobs', 'loading', { title: 'Loading jobs', body: 'Preparing job summary.' });
+      setStateWithBody('state-projects', 'body-projects', 'loading', { title: 'Loading projects', body: 'Preparing project list.' });
+      setStateWithBody('state-create-form', 'body-create-form', 'ready');
+      setStateWithBody('state-create-released', 'body-create-released', 'loading', { title: 'Loading projects', body: 'Preparing RELEASED inputs.' });
+      setStateWithBody('state-project-data', 'body-project-data', 'loading', { title: 'Loading projects', body: 'Preparing project list.' });
+      setState('state-project-tree', 'empty', { title: 'Select a project', body: 'Choose a project to view its history.' });
+      setStateWithBody('state-import', 'body-import', 'ready');
+      setStateWithBody('state-readme', 'body-readme', 'ready');
 
-    BOOT = BOOT || {};
-    BOOT.user = boot.user;
-    BOOT.webAppUrl = boot.webAppUrl;
-    BOOT.config = boot.config;
-    BOOT.indexState = boot.indexState;
-    BOOT.jobs = { summary: boot.jobsSummary?.summary || {}, runningJob: boot.jobsSummary?.runningJob || null, recent: [] };
-    BOOT.loaded = {};
+      // Phase 1: fast bootstrap
+      const boot = await run('Loading app…', 'api_bootstrap');
+      if (!boot || typeof boot !== 'object') throw new Error('api_bootstrap returned empty/invalid response.');
 
-    $('sub').textContent =
-      `User: ${BOOT.user || '(unknown)'} • Require Form: ${BOOT.config?.requireApprovedForm} • Require Agile: ${BOOT.config?.requireApprovedAgile}`;
+      BOOT = BOOT || {};
+      BOOT.user = boot.user;
+      BOOT.webAppUrl = boot.webAppUrl;
+      BOOT.config = boot.config;
+      BOOT.indexState = boot.indexState;
+      BOOT.jobs = { summary: boot.jobsSummary?.summary || {}, runningJob: boot.jobsSummary?.runningJob || null, recent: [] };
+      BOOT.loaded = {};
 
-    setLogo($('logoCompany'), BOOT.config?.companyLogoUrl || '');
-    setLogo($('logoCustomer'), BOOT.config?.customerLogoUrl || '');
+      $('sub').textContent =
+        `User: ${BOOT.user || '(unknown)'} • Require Form: ${BOOT.config?.requireApprovedForm} • Require Agile: ${BOOT.config?.requireApprovedAgile}`;
 
-    // Minimal rendering to avoid blank screen
-    if (typeof renderJobsTop === 'function') renderJobsTop();
+      setLogo($('logoCompany'), BOOT.config?.companyLogoUrl || '');
+      setLogo($('logoCustomer'), BOOT.config?.customerLogoUrl || '');
 
-    await loadSections(['projects', 'jobs'], 'Loading data…');
-    renderDiagnostics();
+      // Minimal rendering to avoid blank screen
+      if (typeof renderJobsTop === 'function') renderJobsTop();
 
-  } catch (e) {
-    setBusy(false, '');
-    $('sub').textContent = 'Error during loading.';
-    notifyError('Startup failed', e);
-    console.error(e);
+      await loadSections(['projects', 'jobs'], 'Loading data…');
+      renderDiagnostics();
+
+    } catch (e) {
+      setBusy(false, '');
+      $('sub').textContent = 'Error during loading.';
+      notifyError('Startup failed', e);
+      console.error(e);
+    }
   }
-}
 
 
   // Helper for safe error rendering
