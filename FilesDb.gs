@@ -114,7 +114,7 @@ function files_upsertByFileId_(rec) {
   const values = sh.getDataRange().getValues();
   const idx = files_headerIndexMap_(sh);
   const idxFileId = idx.FileId;
-  if (idxFileId < 0) throw new Error('FILES: missing FileId header');
+  if (idxFileId === undefined) throw new Error('FILES: missing FileId header');
 
   const id = String(rec.fileId || '').trim();
   if (!id) throw new Error('Upsert requires fileId');

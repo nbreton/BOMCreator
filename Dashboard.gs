@@ -14,7 +14,11 @@ function dashboard_build_(opts) {
 
   const needAgileRows = includeProjects || includeAgileLatest || includePending || includeAgileAll;
   const agileRows = needAgileRows ? agile_readIndex_() : [];
-  const rawProjects = includeProjects ? agile_getProjectsFromRows_(agileRows) : [];
+  const rawProjects = includeProjects
+    ? (typeof agile_getProjectsFromRows_ === 'function'
+      ? agile_getProjectsFromRows_(agileRows)
+      : dashboard_getProjectsFromRows_(agileRows))
+    : [];
   const agileLatest = (includeAgileLatest || includePending) ? agile_listLatestFromRows_(agileRows) : [];
   const agileAll = includeAgileAll ? dashboard_listAgileAllFromRows_(agileRows) : [];
 
@@ -113,6 +117,46 @@ function dashboard_listAgileAllFromRows_(rows) {
     buswaySupplier: String(r.BuswaySupplier || ''),
     isLatest: agile_isTrue_(r.IsLatest)
   }));
+}
+
+function dashboard_getProjectsFromRows_(rows) {
+  rows = rows || [];
+  const latestZoneRows = rows.filter(r =>
+    agile_isTrue_(r.IsLatest) &&
+    /^Zone\s+\d+$/i.test(String(r.PartNorm || ''))
+  );
+
+  const projects = {};
+  for (const r of latestZoneRows) {
+    const projectKey = String(r.ProjectKey || '').trim();
+    if (!projectKey) continue;
+
+    const site = String(r.Site || '').trim();
+    const zone = String(r.PartNorm || '').replace(/^Zone\s+/i, '').trim();
+    const mda = (typeof agile_getLatestTab_ === 'function') ? agile_getLatestTab_(site, 'MDA') : null;
+
+    projects[projectKey] = {
+      projectKey,
+      site,
+      zone,
+
+      clusterTab: String(r.TabName || ''),
+      clusterRev: r.Rev,
+      clusterEco: String(r.ECO || ''),
+      clusterDate: String(r.DownloadDate || ''),
+      clusterApproval: String(r.ApprovalStatus || 'PENDING'),
+      clusterBuswaySupplier: String(r.BuswaySupplier || ''),
+
+      mdaTab: mda ? String(mda.TabName || '') : '',
+      mdaRev: mda ? mda.Rev : '',
+      mdaEco: mda ? String(mda.ECO || '') : '',
+      mdaDate: mda ? String(mda.DownloadDate || '') : '',
+      mdaApproval: mda ? String(mda.ApprovalStatus || 'PENDING') : 'PENDING',
+      mdaBuswaySupplier: mda ? String(mda.BuswaySupplier || '') : ''
+    };
+  }
+
+  return Object.values(projects).sort((a, b) => a.projectKey.localeCompare(b.projectKey));
 }
 
 function dashboard_buildAgileTabUrlMap_(tabNames) {
