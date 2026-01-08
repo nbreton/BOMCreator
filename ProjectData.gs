@@ -20,6 +20,7 @@ function projectdata_get_(projectKey) {
       status: String(r.Status || ''),
       url: String(r.Url || ''),
       fileId: String(r.FileId || ''),
+      fileName: String(r.FileName || ''),
       agileTabCluster: String(r.AgileTabCluster || ''),
       agileTabMDA: String(r.AgileTabMDA || ''),
       createdAt: (r.CreatedAt instanceof Date) ? r.CreatedAt.toISOString() : String(r.CreatedAt || '')
@@ -36,5 +37,4 @@ function projectdata_get_(projectKey) {
     released
   };
 }
-
 

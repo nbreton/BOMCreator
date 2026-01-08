@@ -279,6 +279,15 @@ function agile_listTabs_(site, part) {
   }));
 }
 
+function agile_findTabByName_(tabName) {
+  const tab = String(tabName || '').trim();
+  if (!tab) return null;
+  const rows = agile_readIndex_().filter(r => String(r.TabName || '').trim() === tab);
+  if (!rows.length) return null;
+  rows.sort((a, b) => Number(b.Rev || 0) - Number(a.Rev || 0));
+  return rows[0] || null;
+}
+
 /**
  * Restored and required by dashboard_build_()
  */

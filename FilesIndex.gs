@@ -43,6 +43,7 @@ function files_refreshIndexFromDrive_() {
           description: '',
           fileId: f.id,
           url: f.url,
+          fileName: f.name,
           createdAt: f.lastUpdated ? new Date(f.lastUpdated).toISOString() : '',
           createdBy: '',
           status: isObsolete ? 'OBSOLETE' : (parsed.type === 'RELEASED' ? 'RELEASED' : ''),
