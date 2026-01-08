@@ -288,6 +288,81 @@ function mbom_obsoletePreviousReleased_(params) {
   }
 }
 
+function mbom_obsoleteFormFile_(params) {
+  const fileId = String(params.fileId || '').trim();
+  if (!fileId) throw new Error('Missing form fileId');
+
+  const formsFolderId = cfg_get_('FORMS_FOLDER_ID');
+  const obsoleteFolderId = drive_getOrCreateSubfolderId_(formsFolderId, 'Obsolete');
+
+  try {
+    drive_moveFileToFolder_(fileId, formsFolderId, obsoleteFolderId);
+    files_setStatus_(fileId, 'OBSOLETE');
+    log_info_('Obsoleted Form file', { fileId });
+    return { ok: true, moved: true };
+  } catch (e) {
+    log_warn_('Failed to obsolete Form file', { fileId, error: e.message });
+    return { ok: false, error: e.message };
+  }
+}
+
+function mbom_setAgileInputs_(ss, params) {
+  const sourceIdRaw = String(params.downloadListId || '').trim();
+  const sourceId = sourceIdRaw || '1q9Y2NgS4SAJGZ2OMtQafjTCCFWgQFldlmduQnW-qK7I';
+  const rangeA1 = 'A1:U400';
+
+  const applyInputs = (sheetName, tabName) => {
+    const tab = String(tabName || '').trim();
+    if (!tab) return false;
+    const sh = ss.getSheetByName(sheetName);
+    if (!sh) return false;
+    sh.getRange('B1').setValue(sourceId);
+    sh.getRange('B2').setValue(tab);
+    sh.getRange('B3').setValue(rangeA1);
+    mbom_authorizeImportrange_(sh, sourceId, tab, rangeA1);
+    return true;
+  };
+
+  applyInputs('INPUT_BOM_AGILE_Cluster', params.clusterTabName);
+  applyInputs('INPUT_BOM_AGILE_MDA', params.mdaTabName);
+
+  SpreadsheetApp.flush();
+}
+
+function mbom_authorizeImportrange_(sheet, sourceId, tabName, rangeA1) {
+  if (!sheet || !sourceId || !tabName || !rangeA1) return false;
+  try {
+    SpreadsheetApp.openById(sourceId);
+    const tmp = sheet.getRange('Z1');
+    const safeSource = String(sourceId || '').replace(/"/g, '""');
+    const safeTab = String(tabName || '').replace(/"/g, '""');
+    tmp.setFormula(`=IMPORTRANGE("${safeSource}","${safeTab}!${rangeA1}")`);
+    SpreadsheetApp.flush();
+    tmp.setValue('');
+    return true;
+  } catch (e) {
+    log_warn_('IMPORTRANGE authorization failed', { sheet: sheet.getName(), error: e.message });
+    return false;
+  }
+}
+
+function mbom_freezeAgileInputs_(ss, downloadListId, mdaTabName, clusterTabName) {
+  const rangeA1 = 'A1:U400';
+  const freezeSheet = (sheetName, tabName) => {
+    const tab = String(tabName || '').trim();
+    if (!tab) return false;
+    const sh = ss.getSheetByName(sheetName);
+    if (!sh) return false;
+    const rng = sh.getRange(rangeA1);
+    rng.copyTo(rng, { contentsOnly: true });
+    return true;
+  };
+
+  freezeSheet('INPUT_BOM_AGILE_Cluster', clusterTabName);
+  freezeSheet('INPUT_BOM_AGILE_MDA', mdaTabName);
+  SpreadsheetApp.flush();
+}
+
 
 function mbom_setBuswayCodes_(ss, codes) {
   const clusterCode = String(codes.clusterCode || '').trim();

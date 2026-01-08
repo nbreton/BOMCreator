@@ -508,7 +508,7 @@ function api_setAgileApproval(payload) {
     auth_requireEditor_();
     payload = api_asObject_(payload, 'payload');
     const tabName = api_requireString_(payload.tabName, 'tabName', { maxLen: 200 });
-    const status = api_requireEnum_(payload.status, 'status', ['APPROVED', 'REJECTED']);
+    const status = api_requireEnum_(payload.status, 'status', ['APPROVED', 'REJECTED', 'OBSOLETE']);
     const notes = api_optionalString_(payload.notes, 'notes', { maxLen: 500 });
     return agile_approval_set_(tabName, status, notes || '');
   });
@@ -689,6 +689,15 @@ function api_setFileStatus(payload) {
     const status = api_requireEnum_(payload.status, 'status', ['DRAFT', 'APPROVED', 'OBSOLETE']);
     const ok = files_setStatus_(fileId, status);
     return { updated: ok };
+  });
+}
+
+function api_obsoleteFormFile(payload) {
+  return api_handleRequest_('api_obsoleteFormFile', () => {
+    auth_requireEditor_();
+    payload = api_asObject_(payload, 'payload');
+    const fileId = api_requireString_(payload.fileId, 'fileId', { maxLen: 200 });
+    return mbom_obsoleteFormFile_({ fileId });
   });
 }
 

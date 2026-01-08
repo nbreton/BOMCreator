@@ -104,6 +104,24 @@ function drive_getOrCreateSubfolderId_(parentFolderId, subfolderName) {
  * Note: Drive supports multi-parent; this enforces a single-parent-like behavior for your structure.
  */
 function drive_moveFileToFolder_(fileId, fromFolderId, toFolderId) {
+  const hasAdvancedDrive = (() => {
+    try { return !!Drive && !!Drive.Files && typeof Drive.Files.update === 'function'; }
+    catch (e) { return false; }
+  })();
+
+  if (hasAdvancedDrive) {
+    try {
+      Drive.Files.update({}, fileId, null, {
+        addParents: toFolderId,
+        removeParents: fromFolderId,
+        supportsAllDrives: true
+      });
+      return true;
+    } catch (e) {
+      log_warn_('Drive API move failed, falling back to DriveApp', { fileId, error: e.message });
+    }
+  }
+
   const file = DriveApp.getFileById(fileId);
   const fromFolder = DriveApp.getFolderById(fromFolderId);
   const toFolder = DriveApp.getFolderById(toFolderId);
@@ -112,7 +130,7 @@ function drive_moveFileToFolder_(fileId, fromFolderId, toFolderId) {
 
   // Remove only from the specified folder
   try { fromFolder.removeFile(file); } catch (e) {
-    // If file was not in fromFolder, ignore
+    // If file was not in fromFolder or insufficient rights, ignore
   }
   return true;
 }

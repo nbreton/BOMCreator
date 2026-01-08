@@ -43,8 +43,8 @@ function agile_approval_set_(tabName, status, notes) {
   if (!t) throw new Error('Missing tabName');
 
   const normalizedStatus = String(status || '').trim().toUpperCase();
-  if (!['APPROVED', 'REJECTED'].includes(normalizedStatus)) {
-    throw new Error('Status must be APPROVED or REJECTED');
+  if (!['APPROVED', 'REJECTED', 'OBSOLETE'].includes(normalizedStatus)) {
+    throw new Error('Status must be APPROVED, REJECTED, or OBSOLETE');
   }
 
   const user = auth_getUser_();
