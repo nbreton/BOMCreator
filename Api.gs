@@ -524,6 +524,24 @@ function api_setProjectClusterGroup(payload) {
   });
 }
 
+function api_updateProjectSettings(payload) {
+  return api_handleRequest_('api_updateProjectSettings', () => {
+    auth_requireEditor_();
+    payload = api_asObject_(payload, 'payload');
+    const projectKey = api_requireString_(payload.projectKey, 'projectKey', { maxLen: 80, pattern: /^[A-Za-z0-9._-]+$/ });
+    const clusterGroup = api_optionalNumber_(payload.clusterGroup, 'clusterGroup', { integer: true, min: 1, max: 9 });
+    const includeMdaOverride = api_optionalString_(payload.includeMdaOverride, 'includeMdaOverride', { maxLen: 10 });
+    const clusterBuswaySupplier = api_optionalString_(payload.clusterBuswaySupplier, 'clusterBuswaySupplier', { maxLen: 200 });
+    const mdaBuswaySupplier = api_optionalString_(payload.mdaBuswaySupplier, 'mdaBuswaySupplier', { maxLen: 200 });
+    return projects_setSettings_(projectKey, {
+      clusterGroup,
+      includeMdaOverride,
+      clusterBuswaySupplier,
+      mdaBuswaySupplier
+    });
+  });
+}
+
 function api_scheduleFormRevision(payload) {
   return api_handleRequest_('api_scheduleFormRevision', () => {
     auth_requireEditor_();
@@ -554,6 +572,7 @@ function api_scheduleReleasedForProject(payload) {
     const projectKey = api_requireString_(payload.projectKey, 'projectKey', { maxLen: 80, pattern: /^[A-Za-z0-9._-]+$/ });
     const includeMda = api_requireBoolean_(payload.includeMda, 'includeMda');
     const freezeAgileInputs = api_requireBoolean_(payload.freezeAgileInputs, 'freezeAgileInputs');
+    const approvedFormFileId = api_optionalString_(payload.approvedFormFileId, 'approvedFormFileId', { maxLen: 200 });
 
     const agileTabCluster = api_requireString_(payload.agileTabCluster, 'agileTabCluster', { maxLen: 200 });
     const agileTabMDA = includeMda
@@ -573,6 +592,7 @@ function api_scheduleReleasedForProject(payload) {
       projectKey,
       includeMda,
       freezeAgileInputs,
+      approvedFormFileId,
       agileTabCluster,
       agileTabMDA,
       buswayClusterCode,
@@ -753,6 +773,17 @@ function api_retryJob(payload) {
   });
 }
 
+function api_cancelJob(payload) {
+  return api_handleRequest_('api_cancelJob', () => {
+    auth_requireEditor_();
+    payload = api_asObject_(payload, 'payload');
+    const jobId = api_requireString_(payload.jobId, 'jobId', { maxLen: 80 });
+    const res = jobs_cancel_(jobId);
+    if (res.ok === false) throw new ApiError('FAILED_PRECONDITION', res.error || 'Job cancel failed');
+    return res;
+  });
+}
+
 function api_removeJob(payload) {
   return api_handleRequest_('api_removeJob', () => {
     auth_requireEditor_();
@@ -770,6 +801,10 @@ function api_restartJobs(payload) {
     payload = api_asObject_(payload || {}, 'payload');
     return jobs_restartRunner_();
   });
+}
+
+function api_listChangeActions() {
+  return api_handleRequest_('api_listChangeActions', () => change_actions_list_());
 }
 
 function api_getArchitectureSpec() {

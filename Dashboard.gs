@@ -34,7 +34,10 @@ function dashboard_build_(opts) {
     return {
       ...p,
       clusterGroup: effective.clusterGroup,
-      includeMda: effective.includeMda
+      includeMda: effective.includeMda,
+      includeMdaOverride: effective.includeMdaOverride || '',
+      clusterBuswaySupplier: effective.clusterBuswaySupplier || p.clusterBuswaySupplier || '',
+      mdaBuswaySupplier: effective.mdaBuswaySupplier || p.mdaBuswaySupplier || ''
     };
   }) : [];
 
@@ -59,6 +62,7 @@ function dashboard_build_(opts) {
         status: String(rel.Status || ''),
         url: String(rel.Url || ''),
         fileId: String(rel.FileId || ''),
+        fileName: String(rel.FileName || ''),
         agileTabCluster: String(rel.AgileTabCluster || ''),
         agileTabMDA: String(rel.AgileTabMDA || '')
       } : null
@@ -111,6 +115,7 @@ function dashboard_normalizeFilesForUi_(rows) {
     status: String(r.Status || ''),
     fileId: String(r.FileId || ''),
     url: String(r.Url || ''),
+    fileName: String(r.FileName || ''),
     eco: String(r.ECO || ''),
     description: String(r.Description || ''),
     createdBy: String(r.CreatedBy || ''),

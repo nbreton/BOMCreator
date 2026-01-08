@@ -1,6 +1,6 @@
 const JOB_PREFIX = 'JOB_';
 const JOB_MAX_KEEP = 200;
-const JOB_STALE_MINUTES = 30;
+const JOB_STALE_MINUTES = 10;
 
 /**
  * Create a new job and schedule execution.
@@ -24,7 +24,8 @@ function jobs_create_(type, params) {
     params: params || {},
     results: [],
     errors: [],
-    retryCount: 0
+    retryCount: 0,
+    cancelRequested: false
   };
   jobs_put_(job);
   jobs_cleanupOld_();
@@ -66,6 +67,25 @@ function jobs_remove_(jobId) {
   return { ok: true };
 }
 
+function jobs_cancel_(jobId) {
+  const job = jobs_get_(jobId);
+  if (!job) return { ok: false, error: 'Job not found' };
+  if (['DONE', 'DONE_WITH_ERRORS', 'ERROR', 'CANCELLED'].includes(job.status)) {
+    return { ok: false, error: `Cannot cancel job in status: ${job.status}` };
+  }
+
+  if (job.status === 'QUEUED') {
+    job.status = 'CANCELLED';
+    job.finishedAt = new Date().toISOString();
+    job.message = 'Cancelled by user.';
+  } else if (job.status === 'RUNNING') {
+    job.cancelRequested = true;
+    job.message = 'Cancel requested…';
+  }
+  jobs_put_(job);
+  return { ok: true, jobId: job.id, status: job.status };
+}
+
 function jobs_restartRunner_() {
   jobs_cleanupTriggers_();
   jobs_schedule_();
@@ -87,6 +107,15 @@ function jobs_run_() {
 
     const job = jobs_getNext_();
     if (!job) {
+      jobs_cleanupTriggers_();
+      return;
+    }
+
+    if (job.cancelRequested) {
+      job.status = 'CANCELLED';
+      job.finishedAt = new Date().toISOString();
+      job.message = 'Cancelled by user.';
+      jobs_put_(job);
       jobs_cleanupTriggers_();
       return;
     }
@@ -146,6 +175,12 @@ function jobs_execute_(job) {
 
 function jobs_execCreateForm_(job) {
   try {
+    if (job.cancelRequested) {
+      job.status = 'CANCELLED';
+      job.finishedAt = new Date().toISOString();
+      job.message = 'Cancelled by user.';
+      return;
+    }
     job.progressTotal = 1;
     job.progressCurrent = 0;
     job.message = 'Creating Form revision (copy)…';
@@ -169,6 +204,12 @@ function jobs_execCreateForm_(job) {
 
 function jobs_execCreateReleasedOne_(job) {
   try {
+    if (job.cancelRequested) {
+      job.status = 'CANCELLED';
+      job.finishedAt = new Date().toISOString();
+      job.message = 'Cancelled by user.';
+      return;
+    }
     job.progressTotal = 1;
     job.progressCurrent = 0;
     job.message = 'Creating RELEASED (copy)…';
@@ -249,6 +290,12 @@ function jobs_execCreateReleasedBatch_(job) {
   jobs_put_(job);
 
   for (let i = job.cursor; i < end; i++) {
+    if (job.cancelRequested) {
+      job.status = 'CANCELLED';
+      job.finishedAt = new Date().toISOString();
+      job.message = 'Cancelled by user.';
+      return;
+    }
     const pk = projectKeys[i];
     try {
       const eff = projects_getEffective_(pk);
@@ -266,8 +313,11 @@ function jobs_execCreateReleasedBatch_(job) {
       if (includeMda && (!m || !m.TabName)) throw new Error(`MDA required but missing for ${pk}`);
 
       // Infer busway codes (job-level overrides win)
-      const buswayClusterCode = job.params.buswayClusterCode || jobs_inferClusterCode_(String(cl.BuswaySupplier || ''));
-      const buswayMdaCode = includeMda ? (job.params.buswayMdaCode || jobs_inferMdaCode_(String(m.BuswaySupplier || ''))) : '';
+      const clusterSupplier = eff.clusterBuswaySupplier || String(cl.BuswaySupplier || '');
+      const mdaSupplier = includeMda ? (eff.mdaBuswaySupplier || String(m.BuswaySupplier || '')) : '';
+
+      const buswayClusterCode = job.params.buswayClusterCode || jobs_inferClusterCode_(clusterSupplier);
+      const buswayMdaCode = includeMda ? (job.params.buswayMdaCode || jobs_inferMdaCode_(mdaSupplier)) : '';
 
       const res = mbom_createReleasedForProject_({
         projectKey: pk,
@@ -412,6 +462,7 @@ function jobs_retry_(jobId) {
   job.results = [];
   job.errors = [];
   job.retryCount = Number(job.retryCount || 0) + 1;
+  job.cancelRequested = false;
   jobs_put_(job);
   jobs_schedule_();
   return { ok: true, jobId: job.id };

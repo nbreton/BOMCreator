@@ -57,6 +57,7 @@ function mbom_createNewFormRevision_(params) {
       description: params.description || '',
       fileId,
       url,
+      fileName: newName,
       createdAt: new Date().toISOString(),
       createdBy: user,
       status: 'DRAFT',
@@ -167,11 +168,26 @@ function mbom_createReleasedForProject_(params) {
       );
     }
 
-    // Busway codes (confirmed by user)
+    const clusterRow = agile_findTabByName_(String(cluster.TabName || ''));
+    const mdaRow = includeMda ? agile_findTabByName_(String(mda.TabName || '')) : null;
+
+    const clusterSupplier = String(effective.clusterBuswaySupplier || clusterRow?.BuswaySupplier || '');
+    const mdaSupplier = includeMda ? String(effective.mdaBuswaySupplier || mdaRow?.BuswaySupplier || '') : '';
+
+    const buswayClusterCode = String(params.buswayClusterCode || mbom_inferClusterCode_(clusterSupplier) || '');
+    const buswayMdaCode = includeMda ? String(params.buswayMdaCode || mbom_inferMdaCode_(mdaSupplier) || '') : '';
+
+    // Busway codes (read-only in UI, inferred from suppliers or overrides)
     mbom_setBuswayCodes_(ss, {
-      mdaCode: includeMda ? String(params.buswayMdaCode || '') : '',
-      clusterCode: String(params.buswayClusterCode || '')
+      mdaCode: includeMda ? buswayMdaCode : '',
+      clusterCode: buswayClusterCode
     });
+
+    const ecoValues = [];
+    if (clusterRow && clusterRow.ECO) ecoValues.push(String(clusterRow.ECO || '').trim());
+    if (includeMda && mdaRow && mdaRow.ECO) ecoValues.push(String(mdaRow.ECO || '').trim());
+    const ecoFromAgile = Array.from(new Set(ecoValues.filter(Boolean))).join(' / ');
+    const ecoFinal = String(params.eco || '').trim() || ecoFromAgile;
 
     // Revision tab update (RELEASED keeps ECO label)
     mbom_upsertRevisionRow_(ss, {
@@ -179,7 +195,7 @@ function mbom_createReleasedForProject_(params) {
       createdAt: new Date(),
       createdBy: user,
       changeRefLabel: 'ECO',
-      changeRefValue: String(params.eco || '').trim(),
+      changeRefValue: ecoFinal,
       description: params.description || '',
       affectedItems: params.affectedItems || '',
       projectKey,
@@ -195,10 +211,11 @@ function mbom_createReleasedForProject_(params) {
       agileTabMDA: includeMda ? String(mda.TabName) : '',
       agileTabCluster: String(cluster.TabName),
       agileRevCluster: cluster.Rev || '',
-      eco: String(params.eco || '').trim(),
+      eco: ecoFinal,
       description: params.description || '',
       fileId,
       url,
+      fileName: newName,
       createdAt: new Date().toISOString(),
       createdBy: user,
       status: 'RELEASED',
@@ -292,6 +309,21 @@ function mbom_setBuswayCodes_(ss, codes) {
   }
 
   SpreadsheetApp.flush();
+}
+
+function mbom_inferMdaCode_(buswaySupplier) {
+  const s = String(buswaySupplier || '').toUpperCase();
+  if (s.includes('STARLINE')) return 'ST';
+  if (s.includes('EI') || s.includes('E&I')) return 'EI';
+  return '';
+}
+
+function mbom_inferClusterCode_(buswaySupplier) {
+  const s = String(buswaySupplier || '').toUpperCase();
+  if (s.includes('MARDIX')) return 'MA';
+  if (s.includes('EAE')) return 'EA';
+  if (s.includes('EI') || s.includes('E&I')) return 'EI';
+  return '';
 }
 
 /**
