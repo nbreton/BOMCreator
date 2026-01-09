@@ -34,7 +34,7 @@ function mbom_createNewFormRevision_(params) {
     mbom_obsoletePreviousForm_({ baseFormId, formsFolderId: destFolderId, formsObsoleteId: obsoleteFolderId });
 
     // Update Revision tab inside new file
-    const ss = SpreadsheetApp.openById(fileId);
+    const ss = mbom_openSpreadsheetWithRetry_(fileId, { label: 'CREATE_FORM' });
     mbom_upsertRevisionRow_(ss, {
       revision: `Rev ${newFormRev}`,
       createdAt: new Date(),
@@ -116,7 +116,7 @@ function mbom_createReleasedForProject_(params) {
     // Obsolete previous RELEASED after new copy is created (move to Obsolete folder)
     const obsoleteRes = mbom_obsoletePreviousReleased_({ projectKey, releasedFolderId, releasedObsoleteId });
 
-    const ss = SpreadsheetApp.openById(fileId);
+    const ss = mbom_openSpreadsheetWithRetry_(fileId, { label: 'CREATE_RELEASED' });
 
     // Determine Agile tabs (latest by default)
     const site = projectKey.split('-')[0];
@@ -457,6 +457,32 @@ function mbom_findRevisionTableHeader_(sh) {
   }
 
   return null;
+}
+
+function mbom_openSpreadsheetWithRetry_(fileId, opts) {
+  const id = String(fileId || '').trim();
+  if (!id) throw new Error('Missing spreadsheet fileId');
+  const label = String(opts?.label || '').trim();
+  const attempts = Math.max(1, Number(opts?.attempts || 4));
+  const baseSleepMs = Math.max(500, Number(opts?.baseSleepMs || 1500));
+  let lastErr = null;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return SpreadsheetApp.openById(id);
+    } catch (e) {
+      lastErr = e;
+      const sleepMs = Math.min(20000, baseSleepMs * Math.pow(2, attempt - 1));
+      log_warn_('Spreadsheet open retry', {
+        fileId: id,
+        label,
+        attempt,
+        attempts,
+        error: e.message
+      });
+      Utilities.sleep(sleepMs);
+    }
+  }
+  throw lastErr || new Error('Failed to open spreadsheet');
 }
 
 function mbom_authorizeImportrange_(sheet, sourceId, tabName, rangeA1) {
