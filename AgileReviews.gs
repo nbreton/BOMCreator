@@ -152,13 +152,22 @@ function agile_review_loadShouldBe_() {
 
 function agile_review_loadAgileTab_(tabName, sourceId) {
   const tab = String(tabName || '').trim();
-  if (!tab) throw new Error('Missing Agile tab name');
+  if (!tab) {
+    log_error_('Agile review missing tab name.', { tabName });
+    throw new Error('Missing Agile tab name');
+  }
   const srcId = String(sourceId || cfg_get_('DOWNLOAD_LIST_SS_ID') || '').trim();
-  if (!srcId) throw new Error('Missing DOWNLOAD_LIST_SS_ID');
+  if (!srcId) {
+    log_error_('Agile review missing DOWNLOAD_LIST_SS_ID.', { tab });
+    throw new Error('Missing DOWNLOAD_LIST_SS_ID');
+  }
 
   const ss = SpreadsheetApp.openById(srcId);
   const sh = ss.getSheetByName(tab);
-  if (!sh) throw new Error(`Missing Agile tab: ${tab}`);
+  if (!sh) {
+    log_error_('Agile review missing Agile tab.', { tab, sourceId: srcId });
+    throw new Error(`Missing Agile tab: ${tab}`);
+  }
 
   const lastRow = Math.max(1, sh.getLastRow());
   const lastCol = Math.max(1, sh.getLastColumn());
@@ -167,6 +176,7 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
 
   let headerRowIndex = -1;
   let headerNorm = [];
+  const scanDiagnostics = [];
   for (let i = 0; i < scanValues.length; i++) {
     const rowNorm = scanValues[i].map(agile_review_normHeader_);
     const hasGpn = agile_review_findHeaderIndex_(rowNorm, [
@@ -179,6 +189,15 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
       'find number'
     ]) >= 0;
     const hasQty = agile_review_findHeaderIndex_(rowNorm, ['qty', 'quantity', 'total qty', 'bom.qty']) >= 0;
+    if (i < 10) {
+      scanDiagnostics.push({
+        rowIndex: i + 1,
+        hasGpn,
+        hasQty,
+        raw: scanValues[i],
+        normalized: rowNorm
+      });
+    }
     if (hasGpn && hasQty) {
       headerRowIndex = i;
       headerNorm = rowNorm;
@@ -186,7 +205,17 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
     }
   }
 
-  if (headerRowIndex < 0) throw new Error(`Unable to locate header row in Agile tab: ${tab}`);
+  if (headerRowIndex < 0) {
+    log_warn_('Agile review header row not found.', {
+      tab,
+      sourceId: srcId,
+      lastRow,
+      lastCol,
+      scanRows,
+      sampleRows: scanDiagnostics
+    });
+    throw new Error(`Unable to locate header row in Agile tab: ${tab}`);
+  }
 
   const col = {
     wp: agile_review_findHeaderIndex_(headerNorm, ['work package', 'wp']),
@@ -204,6 +233,15 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
     itemType: agile_review_findHeaderIndex_(headerNorm, ['item type', 'bom.item type', 'part type', 'type']),
     description: agile_review_findHeaderIndex_(headerNorm, ['cad description', 'bom.item description', 'description'])
   };
+  log_info_('Agile review header row detected.', {
+    tab,
+    sourceId: srcId,
+    headerRow: headerRowIndex + 1,
+    lastRow,
+    lastCol,
+    header: scanValues[headerRowIndex],
+    columns: col
+  });
 
   const startRow = headerRowIndex + 2;
   const dataRows = lastRow - startRow + 1;
@@ -609,4 +647,129 @@ function agile_review_setStatus_(tabName, status, notes) {
 function agile_review_getPending_() {
   const rows = agile_review_list_({});
   return rows.filter(r => String(r.status || '').toUpperCase() !== 'APPROVED');
+}
+
+function agile_review_diagnoseTab_(tabName, sourceId) {
+  const tab = String(tabName || '').trim();
+  const srcId = String(sourceId || cfg_get_('DOWNLOAD_LIST_SS_ID') || '').trim();
+  const result = {
+    ok: false,
+    tab,
+    sourceId: srcId,
+    config: {
+      hasTabName: Boolean(tab),
+      hasSourceId: Boolean(srcId)
+    },
+    sheet: {
+      exists: false,
+      lastRow: 0,
+      lastCol: 0
+    },
+    header: {
+      found: false,
+      rowIndex: null,
+      columns: {},
+      scanRows: 0,
+      sampleRows: []
+    },
+    errors: []
+  };
+
+  if (!tab) {
+    result.errors.push('Missing Agile tab name.');
+    log_warn_('Agile review diagnose missing tab name.', result);
+    return result;
+  }
+
+  if (!srcId) {
+    result.errors.push('Missing DOWNLOAD_LIST_SS_ID.');
+    log_warn_('Agile review diagnose missing DOWNLOAD_LIST_SS_ID.', result);
+    return result;
+  }
+
+  let ss;
+  try {
+    ss = SpreadsheetApp.openById(srcId);
+  } catch (e) {
+    result.errors.push(`Unable to open source spreadsheet: ${e.message || String(e)}`);
+    log_error_('Agile review diagnose failed to open source spreadsheet.', result);
+    return result;
+  }
+
+  const sh = ss.getSheetByName(tab);
+  if (!sh) {
+    result.errors.push(`Missing Agile tab: ${tab}`);
+    log_warn_('Agile review diagnose missing Agile tab.', result);
+    return result;
+  }
+
+  result.sheet.exists = true;
+  result.sheet.lastRow = Math.max(1, sh.getLastRow());
+  result.sheet.lastCol = Math.max(1, sh.getLastColumn());
+
+  const scanRows = Math.min(200, result.sheet.lastRow);
+  const scanValues = sh.getRange(1, 1, scanRows, result.sheet.lastCol).getDisplayValues();
+
+  let headerRowIndex = -1;
+  let headerNorm = [];
+  const sampleRows = [];
+  for (let i = 0; i < scanValues.length; i++) {
+    const rowNorm = scanValues[i].map(agile_review_normHeader_);
+    const hasGpn = agile_review_findHeaderIndex_(rowNorm, [
+      'gpn number',
+      'gpn',
+      'item number',
+      'number',
+      'bom.item number',
+      'bom.find number',
+      'find number'
+    ]) >= 0;
+    const hasQty = agile_review_findHeaderIndex_(rowNorm, ['qty', 'quantity', 'total qty', 'bom.qty']) >= 0;
+    if (i < 10) {
+      sampleRows.push({
+        rowIndex: i + 1,
+        hasGpn,
+        hasQty,
+        raw: scanValues[i],
+        normalized: rowNorm
+      });
+    }
+    if (hasGpn && hasQty) {
+      headerRowIndex = i;
+      headerNorm = rowNorm;
+      break;
+    }
+  }
+
+  result.header.scanRows = scanRows;
+  result.header.sampleRows = sampleRows;
+
+  if (headerRowIndex < 0) {
+    result.errors.push(`Unable to locate header row in Agile tab: ${tab}`);
+    log_warn_('Agile review diagnose header row not found.', result);
+    return result;
+  }
+
+  result.header.found = true;
+  result.header.rowIndex = headerRowIndex + 1;
+  result.header.columns = {
+    wp: agile_review_findHeaderIndex_(headerNorm, ['work package', 'wp']),
+    gpn: agile_review_findHeaderIndex_(headerNorm, [
+      'gpn number',
+      'gpn',
+      'item number',
+      'number',
+      'bom item number',
+      'bom find number',
+      'find number'
+    ]),
+    classification: agile_review_findHeaderIndex_(headerNorm, ['classification', 'family', 'commodity code', 'bom.bom category', 'bom.category']),
+    qty: agile_review_findHeaderIndex_(headerNorm, ['qty', 'quantity', 'total qty', 'bom.qty']),
+    itemType: agile_review_findHeaderIndex_(headerNorm, ['item type', 'bom.item type', 'part type', 'type']),
+    description: agile_review_findHeaderIndex_(headerNorm, ['cad description', 'bom.item description', 'description'])
+  };
+
+  result.ok = true;
+  log_info_('Agile review diagnose completed.', result);
+  return result;
 }
