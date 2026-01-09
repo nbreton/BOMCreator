@@ -91,6 +91,9 @@ function dashboard_build_(opts) {
   const pendingForms = includePending
     ? formsAll.filter(f => String(f.Status || '').toUpperCase() !== 'APPROVED')
     : [];
+  const pendingAgileReviews = includePending && typeof agile_review_getPending_ === 'function'
+    ? agile_review_getPending_()
+    : [];
 
   return {
     indexState,
@@ -101,7 +104,8 @@ function dashboard_build_(opts) {
     agileAll,
     latestApprovedForm,
     pendingAgile,
-    pendingForms
+    pendingForms,
+    pendingAgileReviews
   };
 }
 
