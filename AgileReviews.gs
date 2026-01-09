@@ -168,13 +168,12 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
   let headerNorm = [];
   for (let i = 0; i < scanValues.length; i++) {
     const rowNorm = scanValues[i].map(agile_review_normHeader_);
-    const hasGpn = agile_review_findHeaderIndex_(rowNorm, ['gpn number', 'gpn', 'item number']) >= 0;
-    const hasWp = agile_review_findHeaderIndex_(rowNorm, ['work package', 'wp']) >= 0;
-    const hasQty = agile_review_findHeaderIndex_(rowNorm, ['qty', 'quantity', 'total qty']) >= 0;
-    if (hasGpn && hasWp) {
+    const hasGpn = agile_review_findHeaderIndex_(rowNorm, ['gpn number', 'gpn', 'item number', 'number', 'bom.item number']) >= 0;
+    const hasQty = agile_review_findHeaderIndex_(rowNorm, ['qty', 'quantity', 'total qty', 'bom.qty']) >= 0;
+    if (hasGpn && hasQty) {
       headerRowIndex = i;
       headerNorm = rowNorm;
-      if (hasQty) break;
+      break;
     }
   }
 
@@ -182,11 +181,11 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
 
   const col = {
     wp: agile_review_findHeaderIndex_(headerNorm, ['work package', 'wp']),
-    gpn: agile_review_findHeaderIndex_(headerNorm, ['gpn number', 'gpn', 'item number']),
-    classification: agile_review_findHeaderIndex_(headerNorm, ['classification', 'family']),
-    qty: agile_review_findHeaderIndex_(headerNorm, ['qty', 'quantity', 'total qty']),
-    itemType: agile_review_findHeaderIndex_(headerNorm, ['item type', 'type']),
-    description: agile_review_findHeaderIndex_(headerNorm, ['cad description', 'description'])
+    gpn: agile_review_findHeaderIndex_(headerNorm, ['gpn number', 'gpn', 'item number', 'number', 'bom.item number']),
+    classification: agile_review_findHeaderIndex_(headerNorm, ['classification', 'family', 'commodity code', 'bom.bom category', 'bom.category']),
+    qty: agile_review_findHeaderIndex_(headerNorm, ['qty', 'quantity', 'total qty', 'bom.qty']),
+    itemType: agile_review_findHeaderIndex_(headerNorm, ['item type', 'bom.item type', 'part type', 'type']),
+    description: agile_review_findHeaderIndex_(headerNorm, ['cad description', 'bom.item description', 'description'])
   };
 
   const startRow = headerRowIndex + 2;
@@ -199,10 +198,10 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
 
   for (const row of values) {
     const gpn = String(row[col.gpn] || '').trim();
-    const wp = String(row[col.wp] || '').trim();
-    const classification = String(row[col.classification] || '').trim();
-    const itemType = String(row[col.itemType] || '').trim();
-    const description = String(row[col.description] || '').trim();
+    const wp = col.wp >= 0 ? String(row[col.wp] || '').trim() : '';
+    const classification = col.classification >= 0 ? String(row[col.classification] || '').trim() : '';
+    const itemType = col.itemType >= 0 ? String(row[col.itemType] || '').trim() : '';
+    const description = col.description >= 0 ? String(row[col.description] || '').trim() : '';
     if (!gpn && !wp && !classification && !itemType && !description) {
       emptyStreak += 1;
       if (emptyStreak >= 5) break;
