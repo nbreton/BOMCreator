@@ -169,12 +169,44 @@ function jobs_execute_(job) {
     case 'CREATE_RELEASES_ALL':
       return jobs_prepareAllThenRun_(job);
 
+    case 'REFRESH_DRIVE_INDEX':
+      return jobs_execRefreshDriveIndex_(job);
+
     default:
       job.status = 'ERROR';
       job.finishedAt = new Date().toISOString();
       job.message = `Unknown job type: ${job.type}`;
       job.errors.push({ error: job.message });
       return;
+  }
+}
+
+function jobs_execRefreshDriveIndex_(job) {
+  try {
+    const res = drive_refreshIndexChunk_({
+      reset: job.cursor === 0,
+      pageSize: job.params?.pageSize || 200
+    });
+
+    job.progressCurrent = Number(res.count || job.progressCurrent || 0);
+    job.progressTotal = job.progressTotal || 0;
+    job.message = res.message || 'Refreshing Drive index…';
+
+    if (res.done) {
+      job.status = 'DONE';
+      job.finishedAt = new Date().toISOString();
+      job.message = 'Drive index refreshed.';
+      job.results.push(res);
+      return;
+    }
+
+    job.status = 'RUNNING';
+    job.cursor = (job.cursor || 0) + 1;
+  } catch (e) {
+    job.status = 'ERROR';
+    job.finishedAt = new Date().toISOString();
+    job.message = `Drive index refresh failed: ${e.message}`;
+    job.errors.push({ error: e.message || String(e) });
   }
 }
 

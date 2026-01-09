@@ -294,6 +294,23 @@
     background:#fff;
     z-index:2;
   }
+  .tableWrap{
+    max-height:420px;
+    overflow:auto;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:#fff;
+  }
+  .tableWrap.compact{ max-height:320px; }
+  .tableWrap .table{
+    margin-top:0;
+  }
+  .tableWrap .table thead th{
+    position:sticky;
+    top:0;
+    background:#fff;
+    z-index:2;
+  }
 
   .card{
     background:var(--card);
@@ -321,6 +338,15 @@
     outline:none;
     font-size:12px;
   }
+  input.inputError, textarea.inputError, select.inputError{
+    border-color:rgba(185,28,28,.6);
+    box-shadow:0 0 0 2px rgba(185,28,28,.12);
+  }
+  .fieldError{
+    color:var(--red);
+    font-size:11px;
+    margin-top:4px;
+  }
   textarea{ min-height:72px; resize:vertical; }
 
   .table{
@@ -329,6 +355,7 @@
     font-size:12px;
     margin-top:8px;
   }
+  .table.resizable th{ resize:horizontal; overflow:hidden; }
   .table th, .table td{
     border-bottom:1px solid var(--border);
     text-align:left;
@@ -340,6 +367,12 @@
   .table thead tr.filterRow th{
     background:#f8fafc;
     padding:6px;
+  }
+  .tableWrap .table thead tr.filterRow th{
+    position:sticky;
+    top:32px;
+    background:#f8fafc;
+    z-index:1;
   }
   .table thead tr.filterRow select,
   .table thead tr.filterRow input{
@@ -378,6 +411,8 @@
   .pill.warn{ color:var(--amber); border-color:rgba(180,83,9,.25); background:rgba(180,83,9,.08); }
   .pill.bad{ color:var(--red); border-color:rgba(185,28,28,.25); background:rgba(185,28,28,.06); }
   .pill.blue{ color:var(--blue); border-color:rgba(37,99,235,.25); background:rgba(37,99,235,.06); }
+  .pill.gray{ color:#6b7280; border-color:#d1d5db; background:#f3f4f6; }
+  .pill.purple{ color:#7c3aed; border-color:rgba(124,58,237,.25); background:rgba(124,58,237,.06); }
 
   .mono{ font-family:var(--mono); font-size:11px; color:var(--muted); }
   .toast{

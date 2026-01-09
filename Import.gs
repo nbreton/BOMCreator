@@ -30,9 +30,10 @@ function files_importReleasedFromText_(text) {
 
       if (!fileId) throw new Error(`Cannot extract file ID from: ${line}`);
 
-      const file = DriveApp.getFileById(fileId);
-      const name = file.getName();
-      const url = file.getUrl();
+      const meta = drive_getFileMetaCached_(fileId);
+      if (!meta) throw new Error(`Cannot access Drive file metadata for ${fileId}`);
+      const name = meta.name;
+      const url = meta.url;
 
       let parsed = files_parseMbomName_(name, (cfg_getAll_().NAME_PREFIX || '').trim());
       if (!parsed && parts.length < 4) {
@@ -58,7 +59,7 @@ function files_importReleasedFromText_(text) {
         description: 'Imported reference',
         fileId,
         url,
-        createdAt: file.getLastUpdated() ? file.getLastUpdated().toISOString() : new Date().toISOString(),
+        createdAt: meta.lastUpdated || new Date().toISOString(),
         createdBy: '',
         status: String(status || 'RELEASED').toUpperCase(),
         notes: 'Imported via Import page'
