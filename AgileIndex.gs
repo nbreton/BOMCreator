@@ -132,6 +132,15 @@ function agile_refreshIndex_() {
       // never break refresh because of notifications
     }
 
+    // Optional Agile review sync (if AgileReviews.gs exists)
+    try {
+      if (typeof globalThis['agile_review_syncFromLatest_'] === 'function') {
+        agile_review_syncFromLatest_();
+      }
+    } catch (e) {
+      // never break refresh because of reviews
+    }
+
     log_info_('Agile index refreshed', { count: records.length });
     return { ok: true, count: records.length };
   } finally {

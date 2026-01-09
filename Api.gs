@@ -331,6 +331,7 @@ function api_loadData(payload) {
       const wantJobs = loadAll || filteredSections.includes('jobs');
       const wantConfig = loadAll || filteredSections.includes('config');
       const wantNotifications = loadAll || filteredSections.includes('notifications');
+      const wantApprovals = loadAll || filteredSections.includes('approvals');
 
       diag.sections = {
         loadAll,
@@ -341,7 +342,8 @@ function api_loadData(payload) {
         wantAgileAll,
         wantJobs,
         wantConfig,
-        wantNotifications
+        wantNotifications,
+        wantApprovals
       };
 
       const resume = api_asObject_(payload.resume || {}, 'resume');
@@ -359,7 +361,7 @@ function api_loadData(payload) {
           includeReleasesList: wantReleases,
           includeAgileLatest: wantAgileLatest,
           includeAgileAll: wantAgileAll,
-          includePending: loadAll,
+          includePending: wantApprovals,
           includeLatestApprovedForm: wantProjects
         }))
         : { indexState: agile_indexState_(), projects: [], forms: [], releases: [], agileLatest: [], agileAll: [], pendingAgile: [], pendingForms: [], latestApprovedForm: null };
@@ -376,16 +378,19 @@ function api_loadData(payload) {
       const agileLatest = wantAgileLatest ? agileLatestAll.slice(agileOffset, agileOffset + limitAgileLatest) : [];
       const agileAll = wantAgileAll ? (dash.agileAll || []) : [];
 
-      const pendingFormsAll = loadAll
+      const pendingFormsAll = wantApprovals
         ? step('normalize_pendingForms', () => dashboard_normalizeFilesForUi_(dash.pendingForms || []))
         : [];
 
-      const pendingForms = loadAll
+      const pendingForms = wantApprovals
         ? pendingFormsAll.slice(pendingFormsOffset, pendingFormsOffset + limitForms)
         : [];
 
-      const pendingAgile = loadAll
+      const pendingAgile = wantApprovals
         ? (dash.pendingAgile || []).slice(pendingAgileOffset, pendingAgileOffset + limitAgileLatest)
+        : [];
+      const pendingAgileReviews = wantApprovals
+        ? (dash.pendingAgileReviews || [])
         : [];
 
       const jobsSummary = wantJobs ? step('jobs_summary_', () => jobs_summary_()) : { summary: { queued: 0, running: 0, done: 0, doneWithErrors: 0, error: 0 }, runningJob: null };
@@ -419,6 +424,7 @@ function api_loadData(payload) {
         pendingFormsSent: pendingForms.length,
         pendingAgileTotal: (dash.pendingAgile || []).length,
         pendingAgileSent: pendingAgile.length,
+        pendingAgileReviewsTotal: (dash.pendingAgileReviews || []).length,
         jobsSent: jobsRecent.length
       };
 
@@ -460,6 +466,7 @@ function api_loadData(payload) {
           agileAll,
           pendingAgile,
           pendingForms,
+          pendingAgileReviews,
           latestApprovedForm: dash.latestApprovedForm ? {
             mbomRev: dash.latestApprovedForm.MbomRev,
             fileId: String(dash.latestApprovedForm.FileId || ''),
@@ -602,6 +609,26 @@ function api_setAgileApproval(payload) {
     const status = api_requireEnum_(payload.status, 'status', ['APPROVED', 'REJECTED', 'OBSOLETE']);
     const notes = api_optionalString_(payload.notes, 'notes', { maxLen: 500 });
     return agile_approval_set_(tabName, status, notes || '');
+  });
+}
+
+function api_setAgileReviewStatus(payload) {
+  return api_handleRequest_('api_setAgileReviewStatus', () => {
+    auth_requireEditor_();
+    payload = api_asObject_(payload, 'payload');
+    const tabName = api_requireString_(payload.tabName, 'tabName', { maxLen: 200 });
+    const status = api_requireEnum_(payload.status, 'status', ['APPROVED', 'REJECTED', 'PENDING']);
+    const notes = api_optionalString_(payload.notes, 'notes', { maxLen: 500 });
+    return agile_review_setStatus_(tabName, status, notes || '');
+  });
+}
+
+function api_backfillAgileReviews(payload) {
+  return api_handleRequest_('api_backfillAgileReviews', () => {
+    auth_requireEditor_();
+    payload = api_asObject_(payload || {}, 'payload');
+    const includeHistory = api_requireBoolean_(payload.includeHistory === true, 'includeHistory');
+    return agile_review_backfill_({ includeHistory });
   });
 }
 

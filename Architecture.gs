@@ -9,6 +9,7 @@ function arch_getSpec_() {
       { file: 'Architecture.gs', purpose: 'Architecture spec and implementation guidance.' },
       { file: 'AgileIndex.gs', purpose: 'Agile index refresh/read + project aggregation.' },
       { file: 'AgileApprovals.gs', purpose: 'Agile approval storage + helpers.' },
+      { file: 'AgileReviews.gs', purpose: 'Agile BOM review generation + comparison helpers.' },
       { file: 'FilesDb.gs', purpose: 'FILES sheet read/write and revision helpers.' },
       { file: 'ProjectsDb.gs', purpose: 'PROJECTS sheet read/write and rules.' },
       { file: 'FilesIndex.gs', purpose: 'Drive indexing into FILES.' },
@@ -54,6 +55,18 @@ function arch_getSpec_() {
           validations: [
             'Status must be APPROVED or REJECTED',
             'UpdatedAt auto-filled on change'
+          ]
+        },
+        {
+          name: 'AGILE_REVIEWS',
+          key: 'TabName',
+          columns: [
+            'TabName', 'Site', 'Part', 'PartNorm', 'ProjectKey', 'Rev', 'DownloadDate',
+            'ProjectType', 'ReviewStatus', 'ReviewedAt', 'ReviewedBy', 'SummaryJson', 'ExceptionsJson', 'Notes'
+          ],
+          validations: [
+            'ReviewStatus in {PENDING, APPROVED, REJECTED}',
+            'SummaryJson/ExceptionsJson store review details'
           ]
         },
         {
@@ -107,6 +120,8 @@ function arch_getSpec_() {
       { name: 'api_refreshFilesIndex', request: null, response: '{ok, inserted, updated}' },
       { name: 'api_listAgileTabs', request: '{site, part}', response: 'tab list with approvalStatus' },
       { name: 'api_setAgileApproval', request: '{tabName, status, notes}', response: '{ok, tabName, status}' },
+      { name: 'api_setAgileReviewStatus', request: '{tabName, status, notes}', response: '{ok, tabName, status}' },
+      { name: 'api_backfillAgileReviews', request: '{includeHistory}', response: '{ok, created, updated}' },
       { name: 'api_setProjectClusterGroup', request: '{projectKey, clusterGroup}', response: '{ok, projectKey, clusterGroup}' },
       { name: 'api_scheduleFormRevision', request: '{baseFormFileId?, newFormRev, changeRef, description, affectedItems}', response: '{ok, jobId}' },
       { name: 'api_scheduleReleasedForProject', request: '{projectKey, releaseRev?, eco?, description?, includeMda?, agileTabCluster?, agileTabMDA?, freezeAgileInputs?}', response: '{ok, jobId}' },
