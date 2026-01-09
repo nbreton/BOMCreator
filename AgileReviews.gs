@@ -152,13 +152,22 @@ function agile_review_loadShouldBe_() {
 
 function agile_review_loadAgileTab_(tabName, sourceId) {
   const tab = String(tabName || '').trim();
-  if (!tab) throw new Error('Missing Agile tab name');
+  if (!tab) {
+    log_error_('Agile review missing tab name.', { tabName });
+    throw new Error('Missing Agile tab name');
+  }
   const srcId = String(sourceId || cfg_get_('DOWNLOAD_LIST_SS_ID') || '').trim();
-  if (!srcId) throw new Error('Missing DOWNLOAD_LIST_SS_ID');
+  if (!srcId) {
+    log_error_('Agile review missing DOWNLOAD_LIST_SS_ID.', { tab });
+    throw new Error('Missing DOWNLOAD_LIST_SS_ID');
+  }
 
   const ss = SpreadsheetApp.openById(srcId);
   const sh = ss.getSheetByName(tab);
-  if (!sh) throw new Error(`Missing Agile tab: ${tab}`);
+  if (!sh) {
+    log_error_('Agile review missing Agile tab.', { tab, sourceId: srcId });
+    throw new Error(`Missing Agile tab: ${tab}`);
+  }
 
   const lastRow = Math.max(1, sh.getLastRow());
   const lastCol = Math.max(1, sh.getLastColumn());
@@ -167,6 +176,7 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
 
   let headerRowIndex = -1;
   let headerNorm = [];
+  const scanDiagnostics = [];
   for (let i = 0; i < scanValues.length; i++) {
     const rowNorm = scanValues[i].map(agile_review_normHeader_);
     const hasGpn = agile_review_findHeaderIndex_(rowNorm, [
@@ -179,6 +189,15 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
       'find number'
     ]) >= 0;
     const hasQty = agile_review_findHeaderIndex_(rowNorm, ['qty', 'quantity', 'total qty', 'bom.qty']) >= 0;
+    if (i < 10) {
+      scanDiagnostics.push({
+        rowIndex: i + 1,
+        hasGpn,
+        hasQty,
+        raw: scanValues[i],
+        normalized: rowNorm
+      });
+    }
     if (hasGpn && hasQty) {
       headerRowIndex = i;
       headerNorm = rowNorm;
@@ -186,7 +205,17 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
     }
   }
 
-  if (headerRowIndex < 0) throw new Error(`Unable to locate header row in Agile tab: ${tab}`);
+  if (headerRowIndex < 0) {
+    log_warn_('Agile review header row not found.', {
+      tab,
+      sourceId: srcId,
+      lastRow,
+      lastCol,
+      scanRows,
+      sampleRows: scanDiagnostics
+    });
+    throw new Error(`Unable to locate header row in Agile tab: ${tab}`);
+  }
 
   const col = {
     wp: agile_review_findHeaderIndex_(headerNorm, ['work package', 'wp']),
@@ -204,6 +233,15 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
     itemType: agile_review_findHeaderIndex_(headerNorm, ['item type', 'bom.item type', 'part type', 'type']),
     description: agile_review_findHeaderIndex_(headerNorm, ['cad description', 'bom.item description', 'description'])
   };
+  log_info_('Agile review header row detected.', {
+    tab,
+    sourceId: srcId,
+    headerRow: headerRowIndex + 1,
+    lastRow,
+    lastCol,
+    header: scanValues[headerRowIndex],
+    columns: col
+  });
 
   const startRow = headerRowIndex + 2;
   const dataRows = lastRow - startRow + 1;
