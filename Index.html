@@ -84,18 +84,6 @@
                 <span class="mono" id="batchHint"></span>
               </div>
               <div class="row" style="margin-top:8px;">
-                <div style="min-width:240px;">
-                  <label>Search projects</label>
-                  <input id="projectsSearch" placeholder="Filter by project, site, or tab">
-                </div>
-                <div style="min-width:180px;">
-                  <label>Eligibility</label>
-                  <select id="projectsEligibilityFilter">
-                    <option value="">All</option>
-                    <option value="eligible">Eligible</option>
-                    <option value="blocked">Blocked</option>
-                  </select>
-                </div>
                 <span class="mono" id="projectsCount"></span>
               </div>
 
@@ -765,7 +753,6 @@ Import:
   const formsPage = { offset: 0, limit: TABLE_LIMITS.forms, total: 0, server: false };
   const agilePage = { offset: 0, limit: TABLE_LIMITS.agile, total: 0, server: false };
   const filtersState = {
-    projects: { query: '', eligibility: '' },
     forms: { query: '', status: '' },
     jobs: { query: '' }
   };
@@ -1103,24 +1090,6 @@ Import:
     }
     if (pageId === 'page-monitoring' && $('jobsSearch')) { $('jobsSearch').focus(); return true; }
     return false;
-  }
-
-  function applyProjectFilters_(rows){
-    const q = String(filtersState.projects.query || '').trim().toLowerCase();
-    const eligibility = filtersState.projects.eligibility || '';
-    return (rows || []).filter(p => {
-      if (eligibility) {
-        const eligible = computeEligibility(p);
-        if (eligibility === 'eligible' && !eligible) return false;
-        if (eligibility === 'blocked' && eligible) return false;
-      }
-      if (!q) return true;
-      const hay = [
-        p.projectKey, p.site, p.clusterTab, p.mdaTab,
-        p.clusterApproval, p.mdaApproval, p.zone
-      ].join(' ').toLowerCase();
-      return hay.includes(q);
-    });
   }
 
   function applyFormsFiltersClient_(rows){
@@ -1591,21 +1560,6 @@ Import:
     }
   });
 
-  ['projectsSearch', 'projectsEligibilityFilter'].forEach(id => {
-    const el = $(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      filtersState.projects.query = $('projectsSearch').value;
-      filtersState.projects.eligibility = $('projectsEligibilityFilter').value;
-      renderProjects(BOOT.dashboard.projects || []);
-    });
-    el.addEventListener('change', () => {
-      filtersState.projects.query = $('projectsSearch').value;
-      filtersState.projects.eligibility = $('projectsEligibilityFilter').value;
-      renderProjects(BOOT.dashboard.projects || []);
-    });
-  });
-
   ['formsSearch', 'formsStatusFilter'].forEach(id => {
     const el = $(id);
     if (!el) return;
@@ -1927,17 +1881,17 @@ Import:
     $('projectsHint').textContent =
       'Select projects to schedule batch RELEASED. Eligibility depends on approvals and Settings (Require Approved Form/Agile).';
 
-    const filteredProjects = applyProjectFilters_(projects || []);
-    $('projectsCount').textContent = `${filteredProjects.length} project(s)`;
+    const rows = projects || [];
+    $('projectsCount').textContent = `${rows.length} project(s)`;
 
-    if (!filteredProjects || !filteredProjects.length) {
+    if (!rows.length) {
       setStateWithBody('state-projects', 'body-projects', 'empty', { title: 'No projects loaded', body: 'Projects will appear once the dashboard data is synced.' });
       setTableEmpty(tbody, 6, 'No projects found.');
       return;
     }
     setStateWithBody('state-projects', 'body-projects', 'ready');
 
-    filteredProjects.forEach(p => {
+    rows.forEach(p => {
       const eligible = computeEligibility(p);
       const rel = p.latestReleased;
       const relStatus = escapeHtml(rel && rel.status ? rel.status : '');
@@ -2296,7 +2250,7 @@ Import:
         try{
           await run('Approving Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'APPROVED', notes });
           notifySuccess('Agile tab approved.');
-          await bootstrap();
+          await reloadSections(['agileLatest', 'approvals', 'projects', 'forms'], 'Refreshing approvals…');
         }
         catch(e){ notifyError('Approval failed', e); }
       });
@@ -2309,7 +2263,7 @@ Import:
         try{
           await run('Rejecting Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'REJECTED', notes });
           notifySuccess('Agile tab rejected.');
-          await bootstrap();
+          await reloadSections(['agileLatest', 'approvals', 'projects', 'forms'], 'Refreshing approvals…');
         }
         catch(e){ notifyError('Rejection failed', e); }
       });
@@ -2322,7 +2276,7 @@ Import:
         try{
           await run('Obsoleting Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'OBSOLETE', notes });
           notifySuccess('Agile tab marked obsolete.');
-          await bootstrap();
+          await reloadSections(['agileLatest', 'approvals', 'projects', 'forms'], 'Refreshing approvals…');
         }
         catch(e){ notifyError('Obsolete failed', e); }
       });
@@ -2368,7 +2322,7 @@ Import:
         try{
           await run('Approving Agile…','api_setAgileApproval',{ tabName: btn.dataset.tab, status:'APPROVED', notes });
           notifySuccess('Agile tab approved.');
-          await bootstrap();
+          await reloadSections(['agileLatest', 'approvals', 'projects', 'forms'], 'Refreshing approvals…');
         }
         catch(e){ notifyError('Approval failed', e); }
       });
@@ -2419,7 +2373,7 @@ Import:
         try{
           await run('Approving Form…','api_setFileStatus',{ fileId: btn.dataset.file, status:'APPROVED' });
           notifySuccess('Form approved.');
-          await bootstrap();
+          await reloadSections(['forms', 'approvals', 'projects', 'agileLatest'], 'Refreshing approvals…');
         } catch(e){
           notifyError('Form approval failed', e);
         }
@@ -2605,6 +2559,15 @@ Import:
     const p = currentProject();
     if (!p) return;
 
+    const setLoading = (selectEl, label) => {
+      if (!selectEl) return;
+      selectEl.innerHTML = '';
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = label;
+      selectEl.appendChild(opt);
+    };
+
     $('relProjectMeta').textContent = `Site: ${p.site} • ClusterGroup: ${p.clusterGroup || '—'} • MDA Required: ${p.includeMda ? 'YES' : 'NO'}`;
 
     // Hide MDA blocks entirely when not required (ClusterGroup != 1)
@@ -2612,6 +2575,19 @@ Import:
     $('mdaBuswayBlock').style.display = p.includeMda ? '' : 'none';
 
     try {
+      cacheClusterRows = [];
+      cacheMdaRows = [];
+      setLoading($('relClusterTab'), 'Loading Agile tabs…');
+      $('relClusterMeta').textContent = 'Loading Agile tabs…';
+      $('relClusterBusway').textContent = '';
+      $('relClusterBuswayCode').textContent = '';
+      if (p.includeMda) {
+        setLoading($('relMdaTab'), 'Loading Agile tabs…');
+        $('relMdaMeta').textContent = 'Loading Agile tabs…';
+        $('relMdaBusway').textContent = '';
+        $('relMdaBuswayCode').textContent = '';
+      }
+
       const clusterPart = `Zone ${p.zone}`;
       const clusterRes = await callApi('api_listAgileTabs', { site: p.site, part: clusterPart });
       cacheClusterRows = (clusterRes && Array.isArray(clusterRes.rows)) ? clusterRes.rows : [];
@@ -2836,6 +2812,14 @@ Import:
 
   function renderNotifTable(){
     renderNotif(BOOT.notifications.settings || [], BOOT.notifications.status || {});
+  }
+
+  async function reloadSections(sections, label){
+    if (!BOOT) return;
+    BOOT.loaded = BOOT.loaded || {};
+    const targets = Array.isArray(sections) ? sections : [];
+    targets.forEach(s => { delete BOOT.loaded[s]; });
+    await loadSections(targets, label);
   }
 
   async function loadSections(sections, label){
