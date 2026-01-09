@@ -1850,13 +1850,14 @@ Import:
         return `<div class="mono" style="color:var(--red)">• ${prefix}${errMsg}</div>`;
       }).join('');
       const statusUpper = String(j.status || '').toUpperCase();
-      const cancelBtn = (['QUEUED', 'RUNNING'].includes(statusUpper))
+      const cancelRequested = !!j.cancelRequested;
+      const cancelBtn = (['QUEUED', 'RUNNING'].includes(statusUpper) && !cancelRequested)
         ? `<button class="btn warn" data-act="cancelJob" data-id="${j.id}">Cancel</button>`
         : '';
       const retryBtn = (['ERROR','DONE_WITH_ERRORS'].includes(statusUpper))
         ? `<button class="btn" data-act="retryJob" data-id="${j.id}">Retry</button>`
         : '';
-      const removeBtn = (['QUEUED', 'RUNNING'].includes(statusUpper))
+      const removeBtn = (['QUEUED', 'RUNNING'].includes(statusUpper) && !cancelRequested)
         ? '<span class="mono">—</span>'
         : `<button class="btn warn" data-act="removeJob" data-id="${j.id}">Remove</button>`;
       const actionsHtml = [cancelBtn, retryBtn, removeBtn].filter(Boolean).join(' ');
