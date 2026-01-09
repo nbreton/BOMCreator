@@ -60,7 +60,7 @@ function jobs_delete_(jobId) {
 function jobs_remove_(jobId) {
   const job = jobs_get_(jobId);
   if (!job) return { ok: false, error: 'Job not found' };
-  if (job.status === 'RUNNING') {
+  if (job.status === 'RUNNING' && !job.cancelRequested) {
     return { ok: false, error: 'Cannot remove a running job. Retry later.' };
   }
   jobs_delete_(jobId);
@@ -412,6 +412,7 @@ function jobs_publicView_(job) {
     id: job.id,
     type: job.type,
     status: job.status,
+    cancelRequested: !!job.cancelRequested,
     message: job.message || '',
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
