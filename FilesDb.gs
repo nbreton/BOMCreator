@@ -191,3 +191,21 @@ function files_setStatus_(fileId, status) {
   }
   return false;
 }
+
+function files_setFileName_(fileId, fileName) {
+  const sh = files_ensure_();
+  const values = sh.getDataRange().getValues();
+  const headers = values[0];
+  const idxFileId = headers.indexOf('FileId');
+  const idxFileName = headers.indexOf('FileName');
+  if (idxFileId < 0 || idxFileName < 0) throw new Error('FILES headers missing required columns');
+
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][idxFileId]).trim() === String(fileId).trim()) {
+      sh.getRange(i + 1, idxFileName + 1).setValue(String(fileName || '').trim());
+      files_resetCache_();
+      return true;
+    }
+  }
+  return false;
+}

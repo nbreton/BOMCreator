@@ -34,7 +34,7 @@ function mbom_createNewFormRevision_(params) {
     mbom_obsoletePreviousForm_({ baseFormId, formsFolderId: destFolderId, formsObsoleteId: obsoleteFolderId });
 
     // Update Revision tab inside new file
-    const ss = SpreadsheetApp.openById(fileId);
+    const ss = mbom_openSpreadsheetWithRetry_(fileId, { label: 'CREATE_FORM' });
     mbom_upsertRevisionRow_(ss, {
       revision: `Rev ${newFormRev}`,
       createdAt: new Date(),
@@ -116,7 +116,7 @@ function mbom_createReleasedForProject_(params) {
     // Obsolete previous RELEASED after new copy is created (move to Obsolete folder)
     const obsoleteRes = mbom_obsoletePreviousReleased_({ projectKey, releasedFolderId, releasedObsoleteId });
 
-    const ss = SpreadsheetApp.openById(fileId);
+    const ss = mbom_openSpreadsheetWithRetry_(fileId, { label: 'CREATE_RELEASED' });
 
     // Determine Agile tabs (latest by default)
     const site = projectKey.split('-')[0];
@@ -203,6 +203,13 @@ function mbom_createReleasedForProject_(params) {
       baseFormRev: params.baseFormRev || ''
     });
 
+    mbom_updateReleasedRevisionSheet_(ss, {
+      releaseRev,
+      clusterRow,
+      mdaRow,
+      updateDate: new Date()
+    });
+
     files_append_({
       type: 'RELEASED',
       projectKey,
@@ -255,6 +262,7 @@ function mbom_obsoletePreviousForm_(params) {
 
   try {
     drive_moveFileToFolder_(baseFormId, fromFolderId, toFolderId);
+    mbom_prefixObsoleteFileName_(baseFormId);
     files_setStatus_(baseFormId, 'OBSOLETE');
     log_info_('Obsoleted previous Form revision', { fileId: baseFormId });
     return { ok: true, moved: true };
@@ -288,6 +296,8 @@ function mbom_obsoletePreviousReleased_(params) {
 
   try {
     drive_moveFileToFolder_(prev.FileId, fromFolderId, toFolderId);
+    const newName = mbom_prefixObsoleteFileName_(prev.FileId);
+    if (newName) obsoleteInfo.fileName = newName;
     files_setStatus_(prev.FileId, 'OBSOLETE');
     log_info_('Obsoleted previous RELEASED mBOM', { projectKey, fileId: prev.FileId, mbomRev: prev.MbomRev });
     return { ok: true, moved: true, obsolete: obsoleteInfo };
@@ -306,6 +316,7 @@ function mbom_obsoleteFormFile_(params) {
 
   try {
     drive_moveFileToFolder_(fileId, formsFolderId, obsoleteFolderId);
+    mbom_prefixObsoleteFileName_(fileId);
     files_setStatus_(fileId, 'OBSOLETE');
     log_info_('Obsoleted Form file', { fileId });
     return { ok: true, moved: true };
@@ -351,6 +362,127 @@ function mbom_setAgileInputs_(ss, params) {
   copyInputs('INPUT_BOM_AGILE_WP5 KOPs', 'BOM Lvl0/Lvl1 WP5', '1q9Y2NgS4SAJGZ2OMtQafjTCCFWgQFldlmduQnW-qK7I');
 
   SpreadsheetApp.flush();
+}
+
+function mbom_updateReleasedRevisionSheet_(ss, params) {
+  const sh = ss.getSheetByName('Revision');
+  if (!sh) return;
+
+  const releaseRev = params.releaseRev;
+  if (releaseRev !== undefined && releaseRev !== null && releaseRev !== '') {
+    sh.getRange('B1').setValue(releaseRev);
+  }
+
+  const headerInfo = mbom_findRevisionTableHeader_(sh);
+  if (!headerInfo) {
+    log_warn_('Revision table header not found', { sheet: 'Revision' });
+    return;
+  }
+
+  const { headerRow, colMap } = headerInfo;
+  const startRow = headerRow + 1;
+  const today = Utilities.formatDate(params.updateDate || new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const formatDate = (value) => (
+    value instanceof Date
+      ? Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : String(value || '').trim()
+  );
+
+  const entries = [
+    { tabLabel: 'INPUT_BOM_AGILE_MDA', row: params.mdaRow || null },
+    { tabLabel: 'INPUT_BOM_AGILE_Cluster', row: params.clusterRow || null }
+  ];
+
+  const maxCol = Math.max(1, ...Object.values(colMap).filter(v => v > 0));
+
+  entries.forEach((entry, idx) => {
+    const r = entry.row || {};
+    const rowValues = new Array(maxCol).fill('');
+    const setIf = (col, value) => { if (col > 0) rowValues[col - 1] = value; };
+
+    setIf(colMap.site, String(r.Site || '').trim());
+    setIf(colMap.part, String(r.Part || r.PartNorm || '').trim());
+    setIf(colMap.tlaRef, String(r.TlaRef || '').trim());
+    setIf(colMap.description, String(r.Description || '').trim());
+    setIf(colMap.rev, r.Rev !== undefined ? r.Rev : '');
+    setIf(colMap.downloadDate, formatDate(r.DownloadDate || ''));
+    setIf(colMap.mbomDate, today);
+    setIf(colMap.tabName, entry.tabLabel);
+
+    sh.getRange(startRow + idx, 1, 1, maxCol).setValues([rowValues]);
+  });
+
+  SpreadsheetApp.flush();
+}
+
+function mbom_findRevisionTableHeader_(sh) {
+  const lastCol = Math.max(1, sh.getLastColumn());
+  const lastRow = Math.max(1, sh.getLastRow());
+  const scanRows = Math.min(20, lastRow);
+  const values = sh.getRange(1, 1, scanRows, lastCol).getValues();
+  const norm = (val) => String(val || '')
+    .replace(/["']/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  const findIndex = (row, candidates) => {
+    for (const c of candidates) {
+      const cn = norm(c);
+      const idx = row.findIndex(cell => cell === cn || cell.includes(cn));
+      if (idx >= 0) return idx + 1;
+    }
+    return -1;
+  };
+
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i].map(norm);
+    const hasSite = row.includes('site');
+    const hasPart = row.some(cell => cell.startsWith('part'));
+    const hasTab = row.some(cell => cell.includes('name of tab') || cell === 'tab');
+    if (!hasSite || !hasPart || !hasTab) continue;
+
+    const colMap = {
+      site: findIndex(row, ['site']),
+      part: findIndex(row, ['part']),
+      tlaRef: findIndex(row, ['tla ref', 'tla']),
+      description: findIndex(row, ['description', 'desc']),
+      rev: findIndex(row, ['rev']),
+      downloadDate: findIndex(row, ['date of downloading', 'date']),
+      mbomDate: findIndex(row, ['date of mbom update', 'mbom update']),
+      tabName: findIndex(row, ['name of tab', 'tab'])
+    };
+
+    return { headerRow: i + 1, colMap };
+  }
+
+  return null;
+}
+
+function mbom_openSpreadsheetWithRetry_(fileId, opts) {
+  const id = String(fileId || '').trim();
+  if (!id) throw new Error('Missing spreadsheet fileId');
+  const label = String(opts?.label || '').trim();
+  const attempts = Math.max(1, Number(opts?.attempts || 4));
+  const baseSleepMs = Math.max(500, Number(opts?.baseSleepMs || 1500));
+  let lastErr = null;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return SpreadsheetApp.openById(id);
+    } catch (e) {
+      lastErr = e;
+      const sleepMs = Math.min(20000, baseSleepMs * Math.pow(2, attempt - 1));
+      log_warn_('Spreadsheet open retry', {
+        fileId: id,
+        label,
+        attempt,
+        attempts,
+        error: e.message
+      });
+      Utilities.sleep(sleepMs);
+    }
+  }
+  throw lastErr || new Error('Failed to open spreadsheet');
 }
 
 function mbom_authorizeImportrange_(sheet, sourceId, tabName, rangeA1) {
@@ -423,6 +555,27 @@ function mbom_inferClusterCode_(buswaySupplier) {
   if (s.includes('EAE')) return 'EA';
   if (s.includes('EI') || s.includes('E&I')) return 'EI';
   return '';
+}
+
+function mbom_prefixObsoleteFileName_(fileId) {
+  const id = String(fileId || '').trim();
+  if (!id) return '';
+  const prefix = '[OBSELETE] ';
+  try {
+    const file = DriveApp.getFileById(id);
+    const current = String(file.getName() || '').trim();
+    if (current.startsWith(prefix)) {
+      files_setFileName_(id, current);
+      return current;
+    }
+    const newName = `${prefix}${current}`;
+    file.setName(newName);
+    files_setFileName_(id, newName);
+    return newName;
+  } catch (e) {
+    log_warn_('Failed to rename obsolete file', { fileId: id, error: e.message });
+    return '';
+  }
 }
 
 /**
