@@ -623,6 +623,14 @@ function api_setAgileReviewStatus(payload) {
   });
 }
 
+function api_listAgileReviews(payload) {
+  return api_handleRequest_('api_listAgileReviews', () => {
+    payload = api_asObject_(payload || {}, 'payload');
+    const status = api_optionalString_(payload.status, 'status', { maxLen: 50 });
+    return { reviews: agile_review_list_({ status }) };
+  });
+}
+
 function api_backfillAgileReviews(payload) {
   return api_handleRequest_('api_backfillAgileReviews', () => {
     auth_requireEditor_();
