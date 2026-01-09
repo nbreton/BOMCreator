@@ -237,18 +237,7 @@ function agile_listLatestFromRows_(rows) {
     String(a.Site || '').localeCompare(String(b.Site || '')) ||
     String(a.PartNorm || '').localeCompare(String(b.PartNorm || ''))
   );
-  return latest.map(r => ({
-    site: String(r.Site || ''),
-    partNorm: String(r.PartNorm || ''),
-    rev: r.Rev,
-    tabName: String(r.TabName || ''),
-    downloadDate: String(r.DownloadDate || ''),
-    eco: String(r.ECO || ''),
-    approvalStatus: String(r.ApprovalStatus || 'PENDING'),
-    buswaySupplier: String(r.BuswaySupplier || ''),
-    tlaRef: String(r.TlaRef || ''),
-    description: String(r.Description || '')
-  }));
+  return agile_rowsToUi_(latest);
 }
 
 function agile_getLatestTab_(site, part) {
@@ -269,7 +258,11 @@ function agile_listTabs_(site, part) {
     String(r.PartNorm || '') === String(partNorm || '')
   );
   rows.sort((a, b) => Number(b.Rev || 0) - Number(a.Rev || 0));
-  return rows.map(r => ({
+  return agile_rowsToUi_(rows);
+}
+
+function agile_rowToUi_(r) {
+  return {
     site: String(r.Site || ''),
     partNorm: String(r.PartNorm || ''),
     rev: r.Rev,
@@ -281,7 +274,30 @@ function agile_listTabs_(site, part) {
     isLatest: agile_isTrue_(r.IsLatest),
     tlaRef: String(r.TlaRef || ''),
     description: String(r.Description || '')
-  }));
+  };
+}
+
+function agile_rowsToUi_(rows) {
+  return (rows || []).map(r => agile_rowToUi_(r));
+}
+
+function agile_buildFilterOptions_(rows) {
+  const sites = new Set();
+  const parts = new Set();
+  const busways = new Set();
+  const approvals = new Set();
+  (rows || []).forEach(r => {
+    if (r.Site) sites.add(String(r.Site || '').trim());
+    if (r.PartNorm) parts.add(String(r.PartNorm || '').trim());
+    if (r.BuswaySupplier) busways.add(String(r.BuswaySupplier || '').trim());
+    if (r.ApprovalStatus) approvals.add(String(r.ApprovalStatus || '').trim());
+  });
+  return {
+    sites: Array.from(sites).filter(Boolean).sort(),
+    parts: Array.from(parts).filter(Boolean).sort(),
+    busways: Array.from(busways).filter(Boolean).sort(),
+    approvals: Array.from(approvals).filter(Boolean).sort()
+  };
 }
 
 function agile_findTabByName_(tabName) {

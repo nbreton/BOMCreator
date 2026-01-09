@@ -501,6 +501,90 @@ function api_refreshFilesIndex() {
   });
 }
 
+function api_refreshDriveIndex(payload) {
+  return api_handleRequest_('api_refreshDriveIndex', () => {
+    auth_requireEditor_();
+    payload = api_asObject_(payload || {}, 'payload');
+    const pageSize = api_optionalNumber_(payload.pageSize, 'pageSize', { integer: true, min: 50, max: 500, default: 200 });
+    return jobs_create_('REFRESH_DRIVE_INDEX', { pageSize });
+  });
+}
+
+function api_listFilesTable(payload) {
+  return api_handleRequest_('api_listFilesTable', () => {
+    payload = api_asObject_(payload, 'payload');
+    const type = api_requireEnum_(payload.type, 'type', ['FORM', 'RELEASED']);
+    const query = api_optionalString_(payload.query, 'query', { maxLen: 200, trim: false });
+    const status = api_optionalString_(payload.status, 'status', { maxLen: 40 });
+    const offset = api_optionalNumber_(payload.offset, 'offset', { integer: true, min: 0, default: 0 });
+    const limit = api_optionalNumber_(payload.limit, 'limit', { integer: true, min: 1, max: 500, default: 200 });
+
+    const normalized = dashboard_normalizeFilesForUi_(files_list_(type));
+    const queryNorm = String(query || '').toLowerCase();
+    const statusNorm = String(status || '').trim().toUpperCase();
+
+    const filtered = normalized.filter(r => {
+      if (statusNorm && String(r.status || '').toUpperCase() !== statusNorm) return false;
+      if (!queryNorm) return true;
+      const hay = [
+        r.mbomRev, r.status, r.fileName, r.fileId, r.eco, r.description
+      ].join(' ').toLowerCase();
+      return hay.includes(queryNorm);
+    });
+
+    filtered.sort((a, b) => Number(b.mbomRev || 0) - Number(a.mbomRev || 0));
+    const rows = filtered.slice(offset, offset + limit);
+    return { rows, total: filtered.length, offset, limit };
+  });
+}
+
+function api_listAgileIndex(payload) {
+  return api_handleRequest_('api_listAgileIndex', () => {
+    payload = api_asObject_(payload, 'payload');
+    const history = api_requireBoolean_(payload.history === true, 'history');
+    const filters = api_asObject_(payload.filters || {}, 'filters');
+    const offset = api_optionalNumber_(payload.offset, 'offset', { integer: true, min: 0, default: 0 });
+    const limit = api_optionalNumber_(payload.limit, 'limit', { integer: true, min: 1, max: 1000, default: 300 });
+
+    const rows = agile_readIndex_();
+    const filteredBase = history ? rows : rows.filter(r => agile_isTrue_(r.IsLatest));
+    const site = api_optionalString_(filters.site, 'filters.site', { maxLen: 100 });
+    const part = api_optionalString_(filters.part, 'filters.part', { maxLen: 100 });
+    const tab = api_optionalString_(filters.tab, 'filters.tab', { maxLen: 200, trim: false });
+    const busway = api_optionalString_(filters.busway, 'filters.busway', { maxLen: 100 });
+    const approval = api_optionalString_(filters.approval, 'filters.approval', { maxLen: 50 });
+
+    const tabNorm = String(tab || '').toLowerCase();
+    const filtered = filteredBase.filter(r => {
+      if (site && String(r.Site || '').trim() !== site) return false;
+      if (part && String(r.PartNorm || '').trim() !== part) return false;
+      if (busway && String(r.BuswaySupplier || '').trim() !== busway) return false;
+      if (approval && String(r.ApprovalStatus || '').trim() !== approval) return false;
+      if (tabNorm) {
+        const hay = String(r.TabName || '').toLowerCase();
+        if (!hay.includes(tabNorm)) return false;
+      }
+      return true;
+    });
+
+    filtered.sort((a, b) =>
+      String(a.Site || '').localeCompare(String(b.Site || '')) ||
+      String(a.PartNorm || '').localeCompare(String(b.PartNorm || '')) ||
+      Number(b.Rev || 0) - Number(a.Rev || 0)
+    );
+
+    const options = agile_buildFilterOptions_(filteredBase);
+    const page = filtered.slice(offset, offset + limit);
+    return {
+      rows: agile_rowsToUi_(page),
+      total: filtered.length,
+      offset,
+      limit,
+      options
+    };
+  });
+}
+
 function api_listAgileTabs(payload) {
   return api_handleRequest_('api_listAgileTabs', () => {
     payload = api_asObject_(payload, 'payload');
