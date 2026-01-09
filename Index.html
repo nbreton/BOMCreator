@@ -228,6 +228,23 @@
                 <span class="mono" id="agilePageMeta"></span>
               </div>
               <div class="toast mono" id="agileHint"></div>
+
+              <h3 style="margin-top:16px;">Agile BOM Reviews (pending)</h3>
+              <table class="table resizable" id="tblAgileReviews">
+                <thead>
+                  <tr>
+                    <th>Site</th>
+                    <th>Part</th>
+                    <th>Rev</th>
+                    <th>Tab</th>
+                    <th>Project Type</th>
+                    <th>Issues</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
             </div>
           </div>
 
@@ -253,6 +270,23 @@
                     <th>Tab</th>
                     <th>Busway Supplier</th>
                     <th>Approval</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+
+              <h3 style="margin-top:12px;">Agile BOM Reviews</h3>
+              <table class="table resizable" id="tblPendingAgileReviews">
+                <thead>
+                  <tr>
+                    <th>Site</th>
+                    <th>Part</th>
+                    <th>Rev</th>
+                    <th>Tab</th>
+                    <th>Project Type</th>
+                    <th>Issues</th>
+                    <th>Status</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -624,6 +658,11 @@
             <div class="cardBody" id="body-diagnostics">
               <div class="banner">
                 Quick visibility into the latest request IDs and recent client-side errors.
+              </div>
+
+              <div class="row" style="margin-top:10px;">
+                <button class="btn" id="btnBackfillAgileReviews">Backfill Agile BOM Reviews</button>
+                <span class="mono" id="backfillAgileReviewsStatus"></span>
               </div>
 
               <div class="grid2" style="margin-top:10px;">
@@ -1160,7 +1199,7 @@ Import:
 
       if (sub === 'forms') await loadSections(['forms'], 'Loading forms…');
       if (sub === 'edit') await loadSections(['projects'], 'Loading projects…');
-      if (sub === 'agile') await loadSections(['agileLatest'], 'Loading Agile BOM…');
+      if (sub === 'agile') await loadSections(['agileLatest', 'approvals'], 'Loading Agile BOM…');
       if (sub === 'approvals') await loadSections(['approvals'], 'Loading approvals…');
     });
   });
@@ -1183,6 +1222,24 @@ Import:
       notifyError('App refresh failed', e);
     }
   });
+
+  const backfillBtn = $('btnBackfillAgileReviews');
+  if (backfillBtn) {
+    backfillBtn.addEventListener('click', async () => {
+      const status = $('backfillAgileReviewsStatus');
+      if (status) status.textContent = '';
+      const includeHistory = confirm('Include historical Agile tabs in the backfill? Click OK for ALL tabs, Cancel for latest only.');
+      try {
+        const res = await run('Backfilling Agile reviews…', 'api_backfillAgileReviews', { includeHistory });
+        const msg = `Backfill complete. Created ${res.created || 0}, Updated ${res.updated || 0}.`;
+        if (status) status.textContent = msg;
+        notifySuccess(msg);
+        await reloadSections(['approvals'], 'Refreshing approvals…');
+      } catch (e) {
+        notifyError('Backfill failed', e);
+      }
+    });
+  }
 
   $('btnFullscreen').addEventListener('click', async () => {
     try{
@@ -2281,6 +2338,87 @@ Import:
         catch(e){ notifyError('Obsolete failed', e); }
       });
     });
+
+    renderAgileReviews(BOOT.dashboard?.pendingAgileReviews || []);
+  }
+
+  function renderAgileReviews(reviews){
+    const tbodyR = $('tblAgileReviews')?.querySelector('tbody');
+    if (!tbodyR) return;
+    tbodyR.innerHTML = '';
+
+    const list = Array.isArray(reviews) ? reviews : [];
+    if (!list.length) {
+      setTableEmpty(tbodyR, 8, 'No Agile BOM reviews pending.');
+      return;
+    }
+
+    list.forEach(r => {
+      const site = escapeHtml(r.site);
+      const part = escapeHtml(r.partNorm || r.part || '');
+      const rev = escapeHtml(r.rev);
+      const tabName = escapeHtml(r.tabName);
+      const projectType = escapeHtml(r.projectType || '');
+      const issues = Array.isArray(r.exceptions) ? r.exceptions.length : 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${site}</td>
+        <td class="mono">${part}</td>
+        <td class="mono">${rev}</td>
+        <td class="mono">${tabName}</td>
+        <td class="mono">${projectType}</td>
+        <td class="mono">${issues}</td>
+        <td>${pill(r.status)}</td>
+        <td>
+          <button class="btn" data-act="reviewDetail" data-tab="${tabName}">View</button>
+          <button class="btn primary" data-act="reviewApprove" data-tab="${tabName}">Approve</button>
+          <button class="btn danger" data-act="reviewReject" data-tab="${tabName}">Reject</button>
+        </td>
+      `;
+      tbodyR.appendChild(tr);
+    });
+
+    tbodyR.querySelectorAll('button[data-act="reviewDetail"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const review = list.find(r => String(r.tabName || '') === String(btn.dataset.tab || ''));
+        if (!review) return;
+        const issues = (review.exceptions || []).map(e => {
+          const wp = e.workPackage ? ` ${e.workPackage}` : '';
+          const cls = e.classification ? ` • ${e.classification}` : '';
+          const gpn = e.gpn ? ` • ${e.gpn}` : '';
+          const detail = e.message || e.type;
+          return `- ${detail}${wp}${cls}${gpn} (expected ${e.expectedQty || 0}, actual ${e.actualQty || 0})`;
+        }).join('\n');
+        const summary = review.summary || {};
+        const header = `Agile BOM Review\nTab: ${review.tabName}\nProject: ${review.projectKey || ''}\nType: ${review.projectType || ''}\nIssues: ${Array.isArray(review.exceptions) ? review.exceptions.length : 0}`;
+        alert(`${header}\n\nTotals\nLines: ${summary.totalLines || 0}\nQty: ${summary.totalQty || 0}\nUnique GPN: ${summary.uniqueGpn || 0}\n\nIssues\n${issues || 'None'}`);
+      });
+    });
+
+    tbodyR.querySelectorAll('button[data-act="reviewApprove"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const notes = prompt(`Approve Agile Review:\n${btn.dataset.tab}\n\nNotes (optional):`, '') || '';
+        try{
+          await run('Approving Agile review…','api_setAgileReviewStatus',{ tabName: btn.dataset.tab, status:'APPROVED', notes });
+          notifySuccess('Agile review approved.');
+          await reloadSections(['approvals', 'agileLatest', 'projects', 'forms'], 'Refreshing approvals…');
+        }
+        catch(e){ notifyError('Review approval failed', e); }
+      });
+    });
+
+    tbodyR.querySelectorAll('button[data-act="reviewReject"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm(`Reject Agile review "${btn.dataset.tab}"?`)) return;
+        const notes = prompt(`Reject Agile Review:\n${btn.dataset.tab}\n\nReason:`, '') || '';
+        try{
+          await run('Rejecting Agile review…','api_setAgileReviewStatus',{ tabName: btn.dataset.tab, status:'REJECTED', notes });
+          notifySuccess('Agile review rejected.');
+          await reloadSections(['approvals', 'agileLatest', 'projects', 'forms'], 'Refreshing approvals…');
+        }
+        catch(e){ notifyError('Review rejection failed', e); }
+      });
+    });
   }
 
   function renderApprovals(){
@@ -2328,6 +2466,85 @@ Import:
       });
     });
 
+    // Agile BOM reviews
+    const tbodyR = $('tblPendingAgileReviews').querySelector('tbody');
+    tbodyR.innerHTML = '';
+
+    const reviews = (BOOT.dashboard && Array.isArray(BOOT.dashboard.pendingAgileReviews))
+      ? BOOT.dashboard.pendingAgileReviews
+      : [];
+
+    reviews.forEach(r => {
+      const site = escapeHtml(r.site);
+      const part = escapeHtml(r.partNorm || r.part || '');
+      const rev = escapeHtml(r.rev);
+      const tabName = escapeHtml(r.tabName);
+      const projectType = escapeHtml(r.projectType || '');
+      const issues = Array.isArray(r.exceptions) ? r.exceptions.length : 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${site}</td>
+        <td class="mono">${part}</td>
+        <td class="mono">${rev}</td>
+        <td class="mono">${tabName}</td>
+        <td class="mono">${projectType}</td>
+        <td class="mono">${issues}</td>
+        <td>${pill(r.status)}</td>
+        <td>
+          <button class="btn" data-act="reviewDetail" data-tab="${tabName}">View</button>
+          <button class="btn primary" data-act="reviewApprove" data-tab="${tabName}">Approve</button>
+          <button class="btn danger" data-act="reviewReject" data-tab="${tabName}">Reject</button>
+        </td>
+      `;
+      tbodyR.appendChild(tr);
+    });
+
+    if (!reviews.length) {
+      setTableEmpty(tbodyR, 8, 'No Agile BOM reviews pending.');
+    }
+
+    tbodyR.querySelectorAll('button[data-act="reviewDetail"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const review = reviews.find(r => String(r.tabName || '') === String(btn.dataset.tab || ''));
+        if (!review) return;
+        const issues = (review.exceptions || []).map(e => {
+          const wp = e.workPackage ? ` ${e.workPackage}` : '';
+          const cls = e.classification ? ` • ${e.classification}` : '';
+          const gpn = e.gpn ? ` • ${e.gpn}` : '';
+          const detail = e.message || e.type;
+          return `- ${detail}${wp}${cls}${gpn} (expected ${e.expectedQty || 0}, actual ${e.actualQty || 0})`;
+        }).join('\n');
+        const summary = review.summary || {};
+        const header = `Agile BOM Review\nTab: ${review.tabName}\nProject: ${review.projectKey || ''}\nType: ${review.projectType || ''}\nIssues: ${Array.isArray(review.exceptions) ? review.exceptions.length : 0}`;
+        alert(`${header}\n\nTotals\nLines: ${summary.totalLines || 0}\nQty: ${summary.totalQty || 0}\nUnique GPN: ${summary.uniqueGpn || 0}\n\nIssues\n${issues || 'None'}`);
+      });
+    });
+
+    tbodyR.querySelectorAll('button[data-act="reviewApprove"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const notes = prompt(`Approve Agile Review:\n${btn.dataset.tab}\n\nNotes (optional):`, '') || '';
+        try{
+          await run('Approving Agile review…','api_setAgileReviewStatus',{ tabName: btn.dataset.tab, status:'APPROVED', notes });
+          notifySuccess('Agile review approved.');
+          await reloadSections(['approvals', 'agileLatest', 'projects', 'forms'], 'Refreshing approvals…');
+        }
+        catch(e){ notifyError('Review approval failed', e); }
+      });
+    });
+
+    tbodyR.querySelectorAll('button[data-act="reviewReject"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm(`Reject Agile review "${btn.dataset.tab}"?`)) return;
+        const notes = prompt(`Reject Agile Review:\n${btn.dataset.tab}\n\nReason:`, '') || '';
+        try{
+          await run('Rejecting Agile review…','api_setAgileReviewStatus',{ tabName: btn.dataset.tab, status:'REJECTED', notes });
+          notifySuccess('Agile review rejected.');
+          await reloadSections(['approvals', 'agileLatest', 'projects', 'forms'], 'Refreshing approvals…');
+        }
+        catch(e){ notifyError('Review rejection failed', e); }
+      });
+    });
+
     // Form approvals
     const tbodyF = $('tblPendingForms').querySelector('tbody');
     tbodyF.innerHTML = '';
@@ -2361,7 +2578,7 @@ Import:
       setTableEmpty(tbodyF, 7, 'No Form approvals pending.');
     }
 
-    const hasApprovals = agileRows.length || forms.length;
+    const hasApprovals = agileRows.length || forms.length || reviews.length;
     if (!hasApprovals) {
       setStateWithBody('state-approvals', 'body-approvals', 'empty', { title: 'No approvals pending', body: 'You are all caught up.' });
     } else {
