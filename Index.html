@@ -35,6 +35,7 @@
         <div class="navTitle">Navigation</div>
         <div class="tabs">
           <div class="tab active" data-page="dashboard">Dashboard</div>
+          <div class="tab" data-page="agileReviews">Agile Reviews</div>
           <div class="tab" data-page="createMbom">mBOM Creation</div>
           <div class="tab" data-page="monitoring">Copy Monitoring</div>
           <div class="tab" data-page="projectData">Project Data</div>
@@ -308,6 +309,71 @@
                 </thead>
                 <tbody></tbody>
               </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Agile Reviews -->
+        <section class="page" id="page-agileReviews">
+          <div class="pageTitle">
+            <h2>Agile BOM Reviews</h2>
+            <p>Dedicated review workspace to compare expected vs actual Agile BOM quantities.</p>
+          </div>
+
+          <div class="card">
+            <div class="cardHeader">
+              <h3>Agile BOM Reviews</h3>
+              <div class="actionCell">
+                <button class="btn" id="btnAgileReviewsRefresh">Refresh</button>
+              </div>
+            </div>
+            <div class="state" id="state-agile-reviews"></div>
+            <div class="cardBody" id="body-agile-reviews">
+              <div class="row tableFilters">
+                <div>
+                  <label>Search</label>
+                  <input id="agileReviewsSearch" placeholder="Filter by tab, project, or notes">
+                </div>
+                <div>
+                  <label>Status</label>
+                  <select id="agileReviewsStatus">
+                    <option value="">All</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="REJECTED">Rejected</option>
+                  </select>
+                </div>
+                <span class="mono" id="agileReviewsCount"></span>
+              </div>
+
+              <div class="tableWrap">
+                <table class="table resizable" id="tblAgileReviewAll">
+                  <thead>
+                    <tr>
+                      <th>Site</th>
+                      <th>Part</th>
+                      <th>Rev</th>
+                      <th>Tab</th>
+                      <th>Project</th>
+                      <th>Type</th>
+                      <th>Issues</th>
+                      <th>Status</th>
+                      <th>Reviewed</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="agileReviewDetailCard">
+            <div class="cardHeader">
+              <h3>Review Detail</h3>
+            </div>
+            <div class="cardBody" id="agileReviewDetailBody">
+              <div class="banner">Select a review to see quantity comparisons and exceptions.</div>
             </div>
           </div>
         </section>
@@ -777,6 +843,8 @@ Import:
   let cacheClusterRows = [];
   let cacheMdaRows = [];
   let changeActionsCache = [];
+  let agileReviewsCache = [];
+  let agileReviewSelectedTab = '';
   const selectedActionRefs = new Set();
   let agileHistoryEnabled = false;
   let jobsPollTimer = null;
@@ -795,6 +863,7 @@ Import:
     forms: { query: '', status: '' },
     jobs: { query: '' }
   };
+  const agileReviewFilters = { query: '', status: '' };
   const STATE_DEFAULTS = {
     loading: { icon: '⏳', title: 'Loading', body: 'Fetching the latest data.' },
     empty: { icon: '○', title: 'Nothing here yet', body: 'When data is available it will appear here.' },
@@ -1127,6 +1196,7 @@ Import:
       if (visibleDash) { visibleDash.focus(); return true; }
       if ($('projectsSearch')) { $('projectsSearch').focus(); return true; }
     }
+    if (pageId === 'page-agileReviews' && $('agileReviewsSearch')) { $('agileReviewsSearch').focus(); return true; }
     if (pageId === 'page-monitoring' && $('jobsSearch')) { $('jobsSearch').focus(); return true; }
     return false;
   }
@@ -1177,6 +1247,7 @@ Import:
         await loadSections(['jobs'], 'Loading jobs…');
         await refreshJobs();
       }
+      if (page === 'agileReviews') await loadAgileReviewsPage();
       if (page === 'createMbom') await loadSections(['forms'], 'Loading forms…');
       if (page === 'settings') await loadSections(['config'], 'Loading settings…');
       if (page === 'notifications') await loadSections(['notifications'], 'Loading notifications…');
@@ -1667,6 +1738,24 @@ Import:
     } else {
       renderAgileLatest(getAgileRowsForDisplay_());
     }
+  });
+
+  ['agileReviewsSearch', 'agileReviewsStatus'].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    const handler = () => {
+      if (id === 'agileReviewsSearch') agileReviewFilters.query = el.value;
+      if (id === 'agileReviewsStatus') agileReviewFilters.status = el.value;
+      renderAgileReviewList_(agileReviewsCache);
+      const review = agileReviewsCache.find(r => String(r.tabName || '') === String(agileReviewSelectedTab || ''));
+      renderAgileReviewDetail_(review || null);
+    };
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
+  });
+
+  $('btnAgileReviewsRefresh')?.addEventListener('click', async () => {
+    await loadAgileReviewsPage(true);
   });
 
   function switchTo(page){
@@ -2419,6 +2508,229 @@ Import:
         catch(e){ notifyError('Review rejection failed', e); }
       });
     });
+  }
+
+  function applyAgileReviewFilters_(rows){
+    const q = String(agileReviewFilters.query || '').trim().toLowerCase();
+    const status = String(agileReviewFilters.status || '').trim().toUpperCase();
+    return (rows || []).filter(r => {
+      if (status && String(r.status || '').toUpperCase() !== status) return false;
+      if (!q) return true;
+      const hay = [
+        r.tabName, r.partNorm, r.part, r.site, r.projectKey, r.projectType, r.notes
+      ].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }
+
+  function renderAgileReviewDetail_(review){
+    const body = $('agileReviewDetailBody');
+    if (!body) return;
+    if (!review) {
+      body.innerHTML = '<div class="banner">Select a review to see quantity comparisons and exceptions.</div>';
+      return;
+    }
+
+    const summary = review.summary || {};
+    const exceptions = Array.isArray(review.exceptions) ? review.exceptions : [];
+    const expected = summary.expectedByWpClass || {};
+    const actual = summary.byWpClass || {};
+    const keys = new Set([...Object.keys(expected), ...Object.keys(actual)]);
+    const rows = Array.from(keys).map(key => {
+      const [wp, classification] = key.split('||');
+      const expectedQty = Number(expected[key] || 0);
+      const actualQty = Number(actual[key] || 0);
+      return {
+        wp: wp || 'UNSPECIFIED',
+        classification: classification || 'UNCLASSIFIED',
+        expectedQty,
+        actualQty,
+        delta: actualQty - expectedQty
+      };
+    }).sort((a, b) =>
+      String(a.wp).localeCompare(String(b.wp)) ||
+      String(a.classification).localeCompare(String(b.classification))
+    );
+
+    const comparisonHtml = rows.length ? `
+      <div class="tableWrap compact">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Work Package</th>
+              <th>Classification</th>
+              <th>Expected Qty</th>
+              <th>Actual Qty</th>
+              <th>Delta</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td class="mono">${escapeHtml(r.wp)}</td>
+                <td>${escapeHtml(r.classification)}</td>
+                <td class="mono">${escapeHtml(r.expectedQty)}</td>
+                <td class="mono">${escapeHtml(r.actualQty)}</td>
+                <td class="mono">${escapeHtml(r.delta)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : '<div class="toast mono">No comparison rows available.</div>';
+
+    const exceptionsHtml = exceptions.length ? `
+      <div class="tableWrap compact">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Work Package</th>
+              <th>Classification</th>
+              <th>GPN</th>
+              <th>Expected</th>
+              <th>Actual</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${exceptions.map(e => `
+              <tr>
+                <td class="mono">${escapeHtml(e.type || '')}</td>
+                <td class="mono">${escapeHtml(e.workPackage || '')}</td>
+                <td>${escapeHtml(e.classification || '')}</td>
+                <td class="mono">${escapeHtml(e.gpn || '')}</td>
+                <td class="mono">${escapeHtml(e.expectedQty || 0)}</td>
+                <td class="mono">${escapeHtml(e.actualQty || 0)}</td>
+                <td>${escapeHtml(e.message || '')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : '<div class="toast mono">No exceptions recorded.</div>';
+
+    body.innerHTML = `
+      <div class="banner">
+        <b>${escapeHtml(review.tabName || '')}</b>
+        ${review.projectKey ? ` • Project <b>${escapeHtml(review.projectKey)}</b>` : ''}
+        ${review.projectType ? ` • Type <b>${escapeHtml(review.projectType)}</b>` : ''}
+        • Status ${pill(review.status)}
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <span class="pill">Lines: ${escapeHtml(summary.totalLines || 0)}</span>
+        <span class="pill">Qty: ${escapeHtml(summary.totalQty || 0)}</span>
+        <span class="pill">Unique GPN: ${escapeHtml(summary.uniqueGpn || 0)}</span>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <span class="mono">Reviewed: ${escapeHtml(fmtDate(review.reviewedAt)) || '—'}</span>
+        <span class="mono">By: ${escapeHtml(review.reviewedBy || '—')}</span>
+        <span class="mono">Notes: ${escapeHtml(review.notes || '—')}</span>
+      </div>
+      <h3 style="margin-top:12px;">Expected vs Actual</h3>
+      ${comparisonHtml}
+      <h3 style="margin-top:12px;">Exceptions</h3>
+      ${exceptionsHtml}
+    `;
+  }
+
+  function renderAgileReviewList_(rows){
+    const tbody = $('tblAgileReviewAll')?.querySelector('tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const filtered = applyAgileReviewFilters_(rows || []);
+    $('agileReviewsCount').textContent = `${filtered.length} review(s)`;
+
+    if (!filtered.length) {
+      setTableEmpty(tbody, 10, 'No Agile BOM reviews found.');
+      renderAgileReviewDetail_(null);
+      return;
+    }
+
+    filtered.forEach(r => {
+      const tr = document.createElement('tr');
+      if (r.tabName && r.tabName === agileReviewSelectedTab) tr.classList.add('is-selected');
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(r.site || '')}</td>
+        <td class="mono">${escapeHtml(r.partNorm || r.part || '')}</td>
+        <td class="mono">${escapeHtml(r.rev || '')}</td>
+        <td class="mono">${escapeHtml(r.tabName || '')}</td>
+        <td class="mono">${escapeHtml(r.projectKey || '')}</td>
+        <td class="mono">${escapeHtml(r.projectType || '')}</td>
+        <td class="mono">${escapeHtml(Array.isArray(r.exceptions) ? r.exceptions.length : 0)}</td>
+        <td>${pill(r.status)}</td>
+        <td class="mono">${escapeHtml(fmtDate(r.reviewedAt)) || '—'}</td>
+        <td>
+          <button class="btn" data-act="reviewSelect" data-tab="${escapeHtml(r.tabName || '')}">View</button>
+          <button class="btn primary" data-act="reviewApprove" data-tab="${escapeHtml(r.tabName || '')}">Approve</button>
+          <button class="btn danger" data-act="reviewReject" data-tab="${escapeHtml(r.tabName || '')}">Reject</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('button[data-act="reviewSelect"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        agileReviewSelectedTab = tab;
+        const review = filtered.find(r => String(r.tabName || '') === String(tab || ''));
+        renderAgileReviewDetail_(review || null);
+        renderAgileReviewList_(rows || []);
+      });
+    });
+
+    tbody.querySelectorAll('button[data-act="reviewApprove"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const notes = prompt(`Approve Agile Review:\n${btn.dataset.tab}\n\nNotes (optional):`, '') || '';
+        try{
+          await run('Approving Agile review…','api_setAgileReviewStatus',{ tabName: btn.dataset.tab, status:'APPROVED', notes });
+          notifySuccess('Agile review approved.');
+          await loadAgileReviewsPage(true);
+          await reloadSections(['approvals', 'agileLatest', 'projects', 'forms'], 'Refreshing approvals…');
+        }
+        catch(e){ notifyError('Review approval failed', e); }
+      });
+    });
+
+    tbody.querySelectorAll('button[data-act="reviewReject"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm(`Reject Agile review "${btn.dataset.tab}"?`)) return;
+        const notes = prompt(`Reject Agile Review:\n${btn.dataset.tab}\n\nReason:`, '') || '';
+        try{
+          await run('Rejecting Agile review…','api_setAgileReviewStatus',{ tabName: btn.dataset.tab, status:'REJECTED', notes });
+          notifySuccess('Agile review rejected.');
+          await loadAgileReviewsPage(true);
+          await reloadSections(['approvals', 'agileLatest', 'projects', 'forms'], 'Refreshing approvals…');
+        }
+        catch(e){ notifyError('Review rejection failed', e); }
+      });
+    });
+  }
+
+  async function loadAgileReviewsPage(force){
+    if (!force && agileReviewsCache.length) {
+      renderAgileReviewList_(agileReviewsCache);
+      if (agileReviewSelectedTab) {
+        const review = agileReviewsCache.find(r => String(r.tabName || '') === String(agileReviewSelectedTab || ''));
+        renderAgileReviewDetail_(review || null);
+      }
+      return;
+    }
+    setStateWithBody('state-agile-reviews', 'body-agile-reviews', 'loading', { title: 'Loading Agile reviews', body: 'Fetching Agile BOM review data.' });
+    try{
+      const res = await run('Loading Agile reviews…', 'api_listAgileReviews', {});
+      agileReviewsCache = Array.isArray(res.reviews) ? res.reviews : [];
+      setStateWithBody('state-agile-reviews', 'body-agile-reviews', 'ready');
+      renderAgileReviewList_(agileReviewsCache);
+      if (agileReviewSelectedTab) {
+        const review = agileReviewsCache.find(r => String(r.tabName || '') === String(agileReviewSelectedTab || ''));
+        renderAgileReviewDetail_(review || null);
+      }
+    } catch(e){
+      setStateWithBody('state-agile-reviews', 'body-agile-reviews', 'error', { title: 'Unable to load reviews', body: formatErrorMessage(e) });
+      notifyError('Agile review load failed', e);
+    }
   }
 
   function renderApprovals(){

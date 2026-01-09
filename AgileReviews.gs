@@ -57,9 +57,10 @@ function agile_review_projectType_(record) {
 
 function agile_review_normHeader_(s) {
   return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
+    .trim();
 }
 
 function agile_review_findHeaderIndex_(headerNorm, candidates) {
@@ -161,14 +162,22 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
 
   const lastRow = Math.max(1, sh.getLastRow());
   const lastCol = Math.max(1, sh.getLastColumn());
-  const scanRows = Math.min(30, lastRow);
+  const scanRows = Math.min(200, lastRow);
   const scanValues = sh.getRange(1, 1, scanRows, lastCol).getValues();
 
   let headerRowIndex = -1;
   let headerNorm = [];
   for (let i = 0; i < scanValues.length; i++) {
     const rowNorm = scanValues[i].map(agile_review_normHeader_);
-    const hasGpn = agile_review_findHeaderIndex_(rowNorm, ['gpn number', 'gpn', 'item number', 'number', 'bom.item number']) >= 0;
+    const hasGpn = agile_review_findHeaderIndex_(rowNorm, [
+      'gpn number',
+      'gpn',
+      'item number',
+      'number',
+      'bom.item number',
+      'bom.find number',
+      'find number'
+    ]) >= 0;
     const hasQty = agile_review_findHeaderIndex_(rowNorm, ['qty', 'quantity', 'total qty', 'bom.qty']) >= 0;
     if (hasGpn && hasQty) {
       headerRowIndex = i;
@@ -181,7 +190,15 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
 
   const col = {
     wp: agile_review_findHeaderIndex_(headerNorm, ['work package', 'wp']),
-    gpn: agile_review_findHeaderIndex_(headerNorm, ['gpn number', 'gpn', 'item number', 'number', 'bom.item number']),
+    gpn: agile_review_findHeaderIndex_(headerNorm, [
+      'gpn number',
+      'gpn',
+      'item number',
+      'number',
+      'bom item number',
+      'bom find number',
+      'find number'
+    ]),
     classification: agile_review_findHeaderIndex_(headerNorm, ['classification', 'family', 'commodity code', 'bom.bom category', 'bom.category']),
     qty: agile_review_findHeaderIndex_(headerNorm, ['qty', 'quantity', 'total qty', 'bom.qty']),
     itemType: agile_review_findHeaderIndex_(headerNorm, ['item type', 'bom.item type', 'part type', 'type']),
