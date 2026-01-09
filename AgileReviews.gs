@@ -163,7 +163,7 @@ function agile_review_loadAgileTab_(tabName, sourceId) {
   const lastRow = Math.max(1, sh.getLastRow());
   const lastCol = Math.max(1, sh.getLastColumn());
   const scanRows = Math.min(200, lastRow);
-  const scanValues = sh.getRange(1, 1, scanRows, lastCol).getValues();
+  const scanValues = sh.getRange(1, 1, scanRows, lastCol).getDisplayValues();
 
   let headerRowIndex = -1;
   let headerNorm = [];
